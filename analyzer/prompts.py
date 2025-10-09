@@ -1,13 +1,11 @@
-# PROMPT FOR STAGE 1: Deconstructing the Job Description
+# --- Stage 1 Prompt (No Changes) ---
 JD_DECONSTRUCTION_PROMPT = """
 You are an expert senior hiring manager tasked with creating a structured hiring rubric from an unstructured job description.
 Your goal is to extract the core requirements and categorize them with high accuracy into a specific JSON format.
-
 Strictly adhere to the following rules:
 1.  The output MUST be a single, raw JSON object. Do not include any text, explanations, or markdown before or after the JSON.
 2.  Categorize skills into "must_have" for essential requirements and "nice_to_have" for desirable ones.
 3.  If years of experience are mentioned, extract the minimum number. If not mentioned, return 0.
-
 ### JSON OUTPUT SCHEMA ###
 {{
   "job_title": "string",
@@ -15,64 +13,25 @@ Strictly adhere to the following rules:
   "must_have_skills": ["string", "string", ...],
   "nice_to_have_skills": ["string", "string", ...]
 }}
-
 ### JOB DESCRIPTION TEXT ###
 {job_description}
 ### END OF JOB DESCRIPTION TEXT ###
 """
 
-# PROMPT FOR STAGE 2: Parsing the Resume
-RESUME_PARSING_PROMPT = """
-You are a meticulous data architect specializing in parsing human-written documents. Your task is to extract all key information from the resume text and make logical inferences to create a complete candidate profile.
+# --- NEW Combined Analysis Prompt (Replaces old Stage 2 & 3 for skills) ---
+COMBINED_ANALYSIS_PROMPT = """
+You are a hyper-logical AI recruitment analyst. Your task is to analyze the provided raw resume text and determine the candidate's proficiency for a specific list of required skills.
 
 Strictly adhere to the following rules:
-1.  The output MUST be a single, raw JSON object.
-2.  Extract entities exactly as they appear, but add inferred skills where logical.
-3.  **Make logical inferences.** For example, a GitHub profile link implies "Git" skills. A project mentioning "Vite and React" implies "JavaScript" and "HTML/CSS" skills.
-4.  If a section is not found, the value should be an empty string or an empty list.
-
-### JSON OUTPUT SCHEMA ###
-{{
-  "professional_summary": "string",
-  "technical_skills": ["string", "string", ...],
-  "work_experience": [
-    {{
-      "job_title": "string",
-      "company": "string",
-      "duration": "string",
-      "description": "string"
-    }},
-    ...
-  ],
-  "education": [
-    {{
-      "degree": "string",
-      "institution": "string"
-    }},
-    ...
-  ],
-  "certifications_and_awards": ["string", "string", ...],
-  "leadership_and_extracurriculars": ["string", "string", ...]
-}}
-
-### RESUME TEXT ###
-{resume_text}
-### END OF RESUME TEXT ###
-"""
-
-# PROMPT FOR STAGE 3: Comparative Analysis
-COMPARATIVE_ANALYSIS_PROMPT = """
-You are a hyper-logical and unbiased AI recruitment analyst. Your only function is to perform a factual, side-by-side comparison of a candidate's profile against a set of job requirements, both provided as JSON objects.
-
-Strictly adhere to the following rules:
-1.  The output MUST be a single, raw JSON object.
-2.  Your analysis must be based **exclusively** on the provided JSON inputs. **Do not make any new inferences.**
-3.  For the `evidence_from_resume` field, you **must** provide the full sentence, skill, or bullet point from the candidate's JSON that proves the skill is present.
-4.  For `proficiency_level`, use the following 0-3 scale based *only* on the provided JSON:
-    - 0: The skill is not found in the candidate's `technical_skills` or `work_experience`.
-    - 1: The skill is mentioned in the `technical_skills` list.
-    - 2: The skill is mentioned within the `description` of a project or work experience.
-    - 3: The skill is central to multiple projects or is a primary technology in a work experience description.
+1.  Search the entire resume text for evidence of each skill from the provided skill lists.
+2.  Make logical inferences. For example, a GitHub profile link is strong evidence for "Git".
+3.  For `evidence_from_resume`, you MUST provide the full sentence or bullet point from the resume that proves the skill's application.
+4.  For `proficiency_level`, use the following 0-3 scale based on the evidence you find:
+    - 0: The skill is not found.
+    - 1: The skill is only mentioned in a list or summary.
+    - 2: The skill is mentioned as being used in a project, certification, or coursework.
+    - 3: The skill is central to a major, impactful project or a core part of a job role.
+5.  The output MUST be a single, raw JSON object.
 
 ### JSON OUTPUT SCHEMA ###
 {{
@@ -93,23 +52,33 @@ Strictly adhere to the following rules:
       }},
       ...
     ]
-  }},
-  "experience_match_analysis": {{
-    "required_years": "integer",
-    "candidate_experience_summary": "string",
-    "is_sufficient": "boolean"
-  }},
-
-  "final_verdict_summary": "string"
+  }}
 }}
 
+### REQUIRED SKILLS (JSON from Job Description) ###
+{jd_skills_json}
+### END OF REQUIRED SKILLS ###
 
-### JOB REQUIREMENTS (JSON) ###
-{jd_json}
-### END OF JOB REQUIREMENTS (JSON) ###
+### RESUME TEXT ###
+{resume_text}
+### END OF RESUME TEXT ###
+"""
 
+# --- NEW Simple Parser for Bonus Points ---
+HOLISTIC_DATA_PARSER_PROMPT = """
+You are a simple data extraction tool. From the resume text, extract only the certifications, awards, leadership roles, and extracurricular activities.
 
-### CANDIDATE PROFILE (JSON) ###
-{resume_json}
-### END OF CANDIDATE PROFILE (JSON) ###
+Strictly adhere to the following rules:
+1.  The output MUST be a single, raw JSON object.
+2.  If a section is not found, the value should be an empty list.
+
+### JSON OUTPUT SCHEMA ###
+{{
+  "certifications_and_awards": ["string", "string", ...],
+  "leadership_and_extracurriculars": ["string", "string", ...]
+}}
+
+### RESUME TEXT ###
+{resume_text}
+### END OF RESUME TEXT ###
 """

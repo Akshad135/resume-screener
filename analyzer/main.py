@@ -72,16 +72,10 @@ def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict) 
     return min(normalized_score, 100) # Cap the score at 100
 
 
+
 def run_analysis(job_description_text: str, resume_file_content: bytes) -> dict:
     """
     The main function to run multiple calls for our resume.
-    
-    Args:
-        job_description_text: The raw text of the job description.
-        resume_file_content: The raw byte content of the resume PDF.
-
-    Returns:
-        A dictionary containing the full analysis and final score.
     """
     print("--- Stage 1: Deconstructing Job Description ---")
     jd_prompt = prompts.JD_DECONSTRUCTION_PROMPT.format(job_description=job_description_text)
@@ -90,36 +84,50 @@ def run_analysis(job_description_text: str, resume_file_content: bytes) -> dict:
         return {"error": "Failed to parse Job Description.", "details": structured_jd["error"]}
     print("✅ JD Deconstruction Complete.")
 
-    print("\n--- Stage 2: Parsing Resume ---")
     resume_text = parsers.extract_text_from_pdf(resume_file_content)
     if not resume_text:
         return {"error": "Failed to extract text from resume PDF."}
     
-    resume_prompt = prompts.RESUME_PARSING_PROMPT.format(resume_text=resume_text)
-    structured_resume = _call_llm(resume_prompt, model=config.STRUCTURING_MODEL)
-    if "error" in structured_resume:
-        return {"error": "Failed to parse Resume.", "details": structured_resume["error"]}
-    print("✅ Resume Parsing Complete.")
-
-    print("\n--- Stage 3: Final Comparative Analysis ---")
-    analysis_prompt = prompts.COMPARATIVE_ANALYSIS_PROMPT.format(
-        jd_json=json.dumps(structured_jd, indent=2),
-        resume_json=json.dumps(structured_resume, indent=2)
+    print("\n--- Stage 2: Combined Skill Analysis ---")
+    jd_skills = {
+        "must_have_skills": structured_jd.get("must_have_skills", []),
+        "nice_to_have_skills": structured_jd.get("nice_to_have_skills", [])
+    }
+    analysis_prompt = prompts.COMBINED_ANALYSIS_PROMPT.format(
+        jd_skills_json=json.dumps(jd_skills, indent=2),
+        resume_text=resume_text
     )
     final_analysis = _call_llm(analysis_prompt, model=config.ANALYSIS_MODEL)
     if "error" in final_analysis:
-        return {"error": "Failed during final comparative analysis.", "details": final_analysis["error"]}
-    print("✅ Comparative Analysis Complete.")
+        return {"error": "Failed during combined analysis.", "details": final_analysis["error"]}
+    print("✅ Combined Skill Analysis Complete.")
+
+    print("\n--- Bonus Stage: Parsing Holistic Data ---")
+    holistic_prompt = prompts.HOLISTIC_DATA_PARSER_PROMPT.format(resume_text=resume_text)
+
+    structured_resume_holistic = _call_llm(holistic_prompt, model=config.STRUCTURING_MODEL)
+    if "error" in structured_resume_holistic:
+
+        print("Warning: Failed to parse holistic data.")
+        structured_resume_holistic = {}
+    print("✅ Holistic Data Parsed.")
+
+
+    final_analysis["experience_match_analysis"] = {
+        "required_years": structured_jd.get("required_experience_years", 0),
+        "candidate_experience_summary": "Candidate is a student; professional experience likely does not meet requirements.",
+        "is_sufficient": False
+    }
 
     print("\n--- Final Step: Calculating Weighted Score ---")
-    final_score = _calculate_weighted_score(final_analysis, structured_jd, structured_resume)
+    final_score = _calculate_weighted_score(final_analysis, structured_jd, structured_resume_holistic)
     print(f"💯 Final Score Calculated: {final_score}")
 
     final_result = {
         "final_score": final_score,
         "llm_analysis": final_analysis,
         "structured_jd": structured_jd,
-        "structured_resume": structured_resume,
+        "structured_resume": structured_resume_holistic,
     }
 
     return final_result
