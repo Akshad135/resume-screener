@@ -1,5 +1,52 @@
-.env
+# --- Environments ---
+# Ignore the virtual environment folder
 /venv
-/.git
-*.pdf
-*.txt
+
+# Ignore environment variables file
+.env
+
+#Ignore my resume 😅
+resume.pdf
+
+# --- Python ---
+# Ignore Python's compiled bytecode and cache folders
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+
+# --- Build & Test Artifacts ---
+# Ignore distribution and build directories
+/build/
+/dist/
+*.egg-info/
+
+# Ignore testing-related files
+.pytest_cache/
+.coverage
+htmlcov/
+
+
+# --- IDE / Editor Files ---
+# Ignore Visual Studio Code settings
+.vscode/
+
+# Ignore PyCharm settings
+.idea/
+
+
+# --- OS Specific Files ---
+# Ignore macOS folder attributes
+.DS_Store
+
+# Ignore Windows thumbnail cache
+Thumbs.db
+
+
+# --- Project Specific ---
+# Ignore log files
+*.log
+
+# You can create an 'uploads' folder for user-submitted resumes
+# and ignore its contents. This lets you keep your test PDF.
+/uploads/
