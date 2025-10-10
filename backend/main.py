@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from decimal import Decimal
 import uuid
+from typing import Optional
 
 from analyzer.main import run_analysis
 from analyzer.parsers import extract_text_from_pdf, extract_text_from_txt
@@ -27,7 +28,7 @@ def get_db():
 # --- API Endpoint ---
 @app.post("/screen/", response_model=schemas.Screening)
 async def screen_resume_and_jd(
-    job_title: str = Form(...),
+    job_title: Optional[str] = Form(None),
     jd_file: UploadFile = File(...),
     resume_file: UploadFile = File(...),
     db: Session = Depends(get_db)
@@ -84,12 +85,15 @@ async def screen_resume_and_jd(
         db_candidate = crud.create_candidate(db, candidate=candidate_schema)
 
     # 7. Prepare data and handle Job creation/retrieval
-    db_job = crud.get_job_by_title(db, title=job_title)
+    structured_jd = analysis_result.get("structured_jd", {})
+    final_job_title = job_title if job_title else structured_jd.get("job_title", f"Untitled Job - {uuid.uuid4().hex[:6]}")
+    
+    db_job = crud.get_job_by_title(db, title=final_job_title)
     if not db_job:
         job_schema = schemas.JobCreate(
-            title=job_title,
+            title=final_job_title,
             raw_jd_text=jd_text,
-            structured_jd=analysis_result.get("structured_jd", {})
+            structured_jd=structured_jd
         )
         db_job = crud.create_job(db, job=job_schema)
 

@@ -8,7 +8,7 @@ Strictly adhere to the following rules:
 4.  If years of experience are mentioned, extract the minimum number. If not, return 0.
 ### JSON OUTPUT SCHEMA ###
 {{
-  "job_title": "string",
+  "job_title": "The primary, most specific job title mentioned in the text.",
   "seniority_level": "string",
   "required_experience_years": "integer",
   "must_have_skills": ["string", "string", ...],
