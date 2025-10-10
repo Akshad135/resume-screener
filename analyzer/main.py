@@ -4,6 +4,16 @@ from . import config, prompts, parsers
 
 client = Groq(api_key=config.GROQ_API_KEY)
 
+def _clean_json_from_llm(raw_output: str) -> str:
+    """Finds and extracts the first valid JSON object from a raw LLM output string."""
+    try:
+        start_index = raw_output.find('{')
+        end_index = raw_output.rfind('}')
+        if start_index != -1 and end_index != -1 and end_index > start_index:
+            return raw_output[start_index:end_index+1]
+    except Exception:
+        pass
+    return raw_output
 
 def _call_llm(prompt: str, model: str) -> dict:
     # Makes a call to the LLM and returns the parsed JSON response.
@@ -15,7 +25,7 @@ def _call_llm(prompt: str, model: str) -> dict:
             response_format={"type": "json_object"},
         )
         response_content = chat_completion.choices[0].message.content
-        cleaned_response = response_content.strip()
+        cleaned_response = _clean_json_from_llm(response_content)
         return json.loads(cleaned_response)
     except Exception as e:
         print(f"An error occurred with the LLM call using model {model}: {e}")
@@ -88,56 +98,53 @@ def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict, 
     normalized_score = int((score / max_score) * 100)
     return min(normalized_score, 100)
 
-def run_analysis(job_description_text: str, resume_file_content: bytes) -> dict:
-    # The main function which combines prompts, weights and makes calls to llm.
-    print("--- Stage 1: Deconstructing Job Description ---")
+def deconstruct_jd(job_description_text: str) -> dict:
+    # Analyzes the Job Description.
+    print("--- Stage 1: Deconstructing Job Description (Once) ---")
     jd_prompt = prompts.JD_DECONSTRUCTION_PROMPT.format(job_description=job_description_text)
     structured_jd = _call_llm(jd_prompt, model=config.STRUCTURING_MODEL)
     if "error" in structured_jd:
         return {"error": "Failed to parse Job Description.", "details": structured_jd["error"]}
     print("✅ JD Deconstruction Complete.")
+    return structured_jd
 
+def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resume_filename: str) -> dict:
+    # Analyzes a resume against a pre-processed Job Description.
+    print(f"\n--- [{resume_filename}] Starting Analysis ---")
     resume_text = parsers.extract_text_from_pdf(resume_file_content)
     if not resume_text:
         return {"error": "Failed to extract text from resume PDF."}
     
-    print("\n--- Stage 2: Combined Skill Analysis ---")
+    print(f"--- [{resume_filename}] Analyzing Skills ---")
     jd_skills = {"must_have_skills": structured_jd.get("must_have_skills", []),"nice_to_have_skills": structured_jd.get("nice_to_have_skills", [])}
     analysis_prompt = prompts.COMBINED_ANALYSIS_PROMPT.format(jd_skills_json=json.dumps(jd_skills, indent=2), resume_text=resume_text)
     skill_analysis = _call_llm(analysis_prompt, model=config.ANALYSIS_MODEL)
     if "error" in skill_analysis:
         return {"error": "Failed during combined analysis.", "details": skill_analysis["error"]}
-    print("✅ Combined Skill Analysis Complete.")
 
-    print("\n--- Bonus Stage: Parsing Holistic Data ---")
+    print(f"--- [{resume_filename}] Parsing Holistic Data ---")
     holistic_prompt = prompts.HOLISTIC_DATA_PARSER_PROMPT.format(resume_text=resume_text)
     structured_resume_holistic = _call_llm(holistic_prompt, model=config.STRUCTURING_MODEL)
     if "error" in structured_resume_holistic:
-        print("Warning: Failed to parse holistic data.")
+        print(f"Warning: Failed to parse holistic data for {resume_filename}.")
         structured_resume_holistic = {}
-    print("✅ Holistic Data Parsed.")
 
-    print("\n--- Calculating Candidate Experience ---")
+    print(f"--- [{resume_filename}] Calculating Experience ---")
     candidate_experience_years = _calculate_experience_years(structured_resume_holistic.get("experience_and_projects", []))
-    print(f"✅ Candidate experience calculated: {candidate_experience_years:.2f} years.")
 
     final_analysis = skill_analysis
     final_analysis["experience_match_analysis"] = {"required_years": structured_jd.get("required_experience_years", 0),"calculated_candidate_years": candidate_experience_years,"is_sufficient": candidate_experience_years >= structured_jd.get("required_experience_years", 0)}
 
-    print("\n--- Final Step: Calculating Weighted Score ---")
-    unadjusted_score = _calculate_weighted_score(final_analysis, structured_jd, structured_resume_holistic, candidate_experience_years)
-    print(f"💯 Unadjusted Score Calculated: {unadjusted_score}")
-
-    print("\n--- Quality Check Stage ---")
+    print(f"--- [{resume_filename}] Assessing Quality ---")
     quality_prompt = prompts.RESUME_QUALITY_PROMPT.format(resume_text=resume_text)
     quality_assessment = _call_llm(quality_prompt, model=config.STRUCTURING_MODEL)
     quality_multiplier = quality_assessment.get("quality_score", 1.0)
-    print(f"🔍 Quality multiplier: {quality_multiplier}")
-
+    
+    print(f"--- [{resume_filename}] Calculating Final Score ---")
+    unadjusted_score = _calculate_weighted_score(final_analysis, structured_jd, structured_resume_holistic, candidate_experience_years)
     final_score = int(unadjusted_score * quality_multiplier)
-    print(f"💯 Final Adjusted Score: {final_score}")
 
-    final_result = {
+    return {
         "final_score": final_score,
         "unadjusted_score": unadjusted_score,
         "quality_assessment": quality_assessment,
@@ -145,5 +152,3 @@ def run_analysis(job_description_text: str, resume_file_content: bytes) -> dict:
         "structured_jd": structured_jd,
         "structured_resume": structured_resume_holistic,
     }
-
-    return final_result

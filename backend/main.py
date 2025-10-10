@@ -4,7 +4,8 @@ from decimal import Decimal
 import uuid
 from typing import Optional, List
 
-from analyzer.main import run_analysis
+# Import the two separate, synchronous functions
+from analyzer.main import deconstruct_jd, analyze_single_resume
 from analyzer.parsers import extract_text_from_pdf, extract_text_from_txt
 
 from . import crud, models, schemas
@@ -51,14 +52,14 @@ def read_screenings_for_job(job_id: int, db: Session = Depends(get_db)):
 # --- POST Endpoint ---
 
 @app.post("/screen/", response_model=List[schemas.Screening])
-async def screen_multiple_resumes(
+async def screen_multiple_resumes( # Changed back to async def
     job_title: Optional[str] = Form(None),
     jd_file: UploadFile = File(...),
     resume_files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
-    # 1. Process the Job Description ONCE at the start.
-    jd_bytes = await jd_file.read()
+    # 1. Process the Job Description.
+    jd_bytes = await jd_file.read() # Added await
     if jd_file.content_type == 'text/plain':
         jd_text = extract_text_from_txt(jd_bytes)
     elif jd_file.content_type == 'application/pdf':
@@ -68,23 +69,39 @@ async def screen_multiple_resumes(
     
     if not jd_text:
         raise HTTPException(status_code=400, detail="Could not extract text from JD file.")
+    
+    structured_jd = deconstruct_jd(job_description_text=jd_text)
+    if "error" in structured_jd:
+        raise HTTPException(status_code=500, detail=structured_jd["error"])
 
     processed_screenings = []
-    db_job = None
+    
+    # 2. Prepare data and handle Job creation/retrieval.
+    final_job_title = job_title if job_title else structured_jd.get("job_title", f"Untitled Job - {uuid.uuid4().hex[:6]}")
+    db_job = crud.get_job_by_title(db, title=final_job_title)
+    if not db_job:
+        job_schema = schemas.JobCreate(
+            title=final_job_title,
+            raw_jd_text=jd_text,
+            structured_jd=structured_jd
+        )
+        db_job = crud.create_job(db, job=job_schema)
 
-    # 2. Loop through each uploaded resume file.
+    # 3. Loop through each uploaded resume file sequentially.
     for resume_file in resume_files:
+        print(f"\n--- Processing resume: {resume_file.filename} ---")
         if resume_file.content_type != 'application/pdf':
             print(f"Skipping non-PDF file: {resume_file.filename}")
             continue
 
         resume_bytes = await resume_file.read()
 
-        # 3. Run the core analyzer for the current resume.
+        # 4. Run the core analyzer for the current resume.
         try:
-            analysis_result = run_analysis(
-                job_description_text=jd_text, 
-                resume_file_content=resume_bytes
+            analysis_result = analyze_single_resume(
+                structured_jd=structured_jd, 
+                resume_file_content=resume_bytes,
+                resume_filename=resume_file.filename
             )
             if "error" in analysis_result:
                 print(f"Skipping resume {resume_file.filename} due to analysis error: {analysis_result['error']}")
@@ -93,13 +110,13 @@ async def screen_multiple_resumes(
             print(f"Skipping resume {resume_file.filename} due to unexpected error: {e}")
             continue
 
-        # 4. Extract raw text from resume for database storage.
+        # 5. Extract raw text from resume for database storage.
         resume_text = extract_text_from_pdf(resume_bytes)
         if not resume_text:
             print(f"Skipping resume {resume_file.filename} because text could not be extracted.")
             continue
 
-        # 5. Prepare data and handle Candidate creation/retrieval for the current resume.
+        # 6. Prepare data and handle Candidate creation/retrieval for the current resume.
         structured_resume = analysis_result.get("structured_resume", {})
         candidate_contact = structured_resume.get("contact_info", f"unknown_{uuid.uuid4()}@example.com")
         candidate_name = structured_resume.get("full_name", "Unknown Candidate")
@@ -115,20 +132,6 @@ async def screen_multiple_resumes(
             )
             db_candidate = crud.create_candidate(db, candidate=candidate_schema)
 
-        # 6. Prepare data and handle Job creation/retrieval (only runs once).
-        if db_job is None:
-            structured_jd = analysis_result.get("structured_jd", {})
-            final_job_title = job_title if job_title else structured_jd.get("job_title", f"Untitled Job - {uuid.uuid4().hex[:6]}")
-            
-            db_job = crud.get_job_by_title(db, title=final_job_title)
-            if not db_job:
-                job_schema = schemas.JobCreate(
-                    title=final_job_title,
-                    raw_jd_text=jd_text,
-                    structured_jd=structured_jd
-                )
-                db_job = crud.create_job(db, job=job_schema)
-
         # 7. Create the final screening record in the database for the current resume.
         screening_schema = schemas.ScreeningCreate(
             final_score=Decimal(str(analysis_result.get("final_score"))),
@@ -138,6 +141,7 @@ async def screen_multiple_resumes(
         
         db_screening = crud.create_screening(db, screening=screening_schema, job_id=db_job.id, candidate_id=db_candidate.id)
         processed_screenings.append(db_screening)
+        print(f"--- Successfully processed and saved: {resume_file.filename} ---")
 
     if not processed_screenings:
         raise HTTPException(status_code=400, detail="No valid resumes were processed.")
