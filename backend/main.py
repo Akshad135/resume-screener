@@ -2,14 +2,12 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
-# Correctly import from the parent 'analyzer' package
 from analyzer.main import run_analysis
-from analyzer.parsers import extract_text_from_pdf
+from analyzer.parsers import extract_text_from_pdf, extract_text_from_txt
 
 from . import crud, models, schemas
 from .database import SessionLocal, engine
 
-# This line creates the database tables if they don't exist
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -18,7 +16,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# --- Dependency for Database Session ---
 def get_db():
     db = SessionLocal()
     try:
@@ -34,14 +31,26 @@ async def screen_resume_and_jd(
     resume_file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Main endpoint to screen a resume against a job description.
-    """
-    # Read the file contents into the formats required by the analyzer and database
-    jd_text = (await jd_file.read()).decode("utf-8", errors="ignore")
+    # 1. Read file bytes first
+    jd_bytes = await jd_file.read()
     resume_bytes = await resume_file.read()
 
-    # 1. Run the core analyzer with the raw bytes of the resume
+    # 2. Process Job Description based on its file type
+    if jd_file.content_type == 'text/plain':
+        jd_text = extract_text_from_txt(jd_bytes)
+    elif jd_file.content_type == 'application/pdf':
+        jd_text = extract_text_from_pdf(jd_bytes)
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported Job Description file type. Please upload a .txt or .pdf file.")
+
+    if not jd_text:
+        raise HTTPException(status_code=400, detail="Could not extract text from the Job Description file.")
+
+    # 3. Validate that the resume is a PDF, as required by the analyzer
+    if resume_file.content_type != 'application/pdf':
+        raise HTTPException(status_code=400, detail="Unsupported Resume file type. Please upload a .pdf file.")
+
+    # 4. Run the core analyzer with the prepared data
     try:
         analysis_result = run_analysis(
             job_description_text=jd_text, 
@@ -52,15 +61,14 @@ async def screen_resume_and_jd(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred during analysis: {str(e)}")
 
-    # 2. Extract raw text from resume for database storage
+    # 5. Extract raw text from resume for database storage
     resume_text = extract_text_from_pdf(resume_bytes)
     if not resume_text:
-        raise HTTPException(status_code=400, detail="Could not extract text from the provided resume PDF.")
+        raise HTTPException(status_code=400, detail="Could not extract text from the provided resume PDF, it might be empty or corrupted.")
 
-    # 3. Prepare data and handle Candidate creation/retrieval
-    # TODO: Update your analyzer prompts to extract name and email from resume_text
-    candidate_email = "candidate@example.com"
-    candidate_name = "Placeholder Name"
+    # 6. Prepare data and handle Candidate creation/retrieval
+    candidate_email = "candidate@example.com" # TODO: Extract from resume_text
+    candidate_name = "Placeholder Name"      # TODO: Extract from resume_text
 
     db_candidate = crud.get_candidate_by_email(db, email=candidate_email)
     if not db_candidate:
@@ -73,7 +81,7 @@ async def screen_resume_and_jd(
         )
         db_candidate = crud.create_candidate(db, candidate=candidate_schema)
 
-    # 4. Prepare data and handle Job creation/retrieval
+    # 7. Prepare data and handle Job creation/retrieval
     db_job = crud.get_job_by_title(db, title=job_title)
     if not db_job:
         job_schema = schemas.JobCreate(
@@ -83,7 +91,7 @@ async def screen_resume_and_jd(
         )
         db_job = crud.create_job(db, job=job_schema)
 
-    # 5. Create the final screening record in the database
+    # 8. Create the final screening record in the database
     screening_schema = schemas.ScreeningCreate(
         final_score=Decimal(str(analysis_result.get("final_score"))),
         quality_multiplier=Decimal(str(analysis_result["quality_assessment"]["quality_score"])),
