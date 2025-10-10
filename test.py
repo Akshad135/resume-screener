@@ -1,5 +1,3 @@
-# test.py (Updated with better error handling)
-
 import json
 import traceback  # Import the traceback module
 from analyzer.main import run_analysis
