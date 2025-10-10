@@ -63,6 +63,8 @@ Strictly adhere to the following rules:
 3.  If a section is not found, the value should be an empty list.
 ### JSON OUTPUT SCHEMA ###
 {{
+  "full_name": "The full name of the candidate.",
+  "contact_info": "The candidate's primary email address. If email is not found check for phone number. If neither is found, return 'Not Found'.",
   "experience_and_projects": [
     {{
       "title": "string",

@@ -3,11 +3,11 @@ from . import models, schemas
 
 # --- Candidate CRUD Functions ---
 
-def get_candidate_by_email(db: Session, email: str):
+def get_candidate_by_contact(db: Session, contact: str):
     """
-    Retrieve a single candidate from the database by their email.
+    Retrieve a single candidate from the database by their contact info.
     """
-    return db.query(models.Candidate).filter(models.Candidate.email == email).first()
+    return db.query(models.Candidate).filter(models.Candidate.contact_info == contact).first()
 
 def create_candidate(db: Session, candidate: schemas.CandidateCreate):
     """

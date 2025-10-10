@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 # --- Candidate Schemas ---
 
 class CandidateBase(BaseModel):
-    email: EmailStr
+    contact_info: str
     full_name: Optional[str] = None
 
 class CandidateCreate(CandidateBase):

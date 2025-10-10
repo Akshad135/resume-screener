@@ -21,7 +21,7 @@ class Candidate(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String(255), index=True)
-    email = Column(String(255), unique=True, index=True)
+    contact_info = Column(String(255), unique=True, index=True)
     raw_resume_text = Column(Text)
     structured_resume = Column(JSONB)
     total_experience = Column(Numeric(4, 2))  # e.g., 10.50 years

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from decimal import Decimal
+import uuid
 
 from analyzer.main import run_analysis
 from analyzer.parsers import extract_text_from_pdf, extract_text_from_txt
@@ -67,16 +68,17 @@ async def screen_resume_and_jd(
         raise HTTPException(status_code=400, detail="Could not extract text from the provided resume PDF, it might be empty or corrupted.")
 
     # 6. Prepare data and handle Candidate creation/retrieval
-    candidate_email = "candidate@example.com" # TODO: Extract from resume_text
-    candidate_name = "Placeholder Name"      # TODO: Extract from resume_text
+    structured_resume = analysis_result.get("structured_resume", {})
+    candidate_contact = structured_resume.get("contact_info", f"unknown_{uuid.uuid4()}@example.com")
+    candidate_name = structured_resume.get("full_name", "Unknown Candidate")
 
-    db_candidate = crud.get_candidate_by_email(db, email=candidate_email)
+    db_candidate = crud.get_candidate_by_contact(db, contact=candidate_contact)
     if not db_candidate:
         candidate_schema = schemas.CandidateCreate(
-            email=candidate_email,
+            contact_info=candidate_contact,
             full_name=candidate_name,
             raw_resume_text=resume_text,
-            structured_resume=analysis_result.get("structured_resume", {}),
+            structured_resume=structured_resume,
             total_experience=Decimal(str(analysis_result["llm_analysis"]["experience_match_analysis"]["calculated_candidate_years"]))
         )
         db_candidate = crud.create_candidate(db, candidate=candidate_schema)
