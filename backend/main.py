@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware 
 from sqlalchemy.orm import Session
 from decimal import Decimal
 import uuid
@@ -17,6 +18,14 @@ app = FastAPI(
     title="Smart Resume Screener API",
     description="An API to screen resumes against job descriptions using AI.",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
 )
 
 def get_db():
