@@ -6,7 +6,7 @@
 .env
 
 #Ignore my resume 😅
-resume.pdf
+*.pdf
 
 # --- Python ---
 # Ignore Python's compiled bytecode and cache folders
