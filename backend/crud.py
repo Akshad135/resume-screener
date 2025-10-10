@@ -37,6 +37,12 @@ def create_job(db: Session, job: schemas.JobCreate):
     db.refresh(db_job)
     return db_job
 
+def get_jobs(db: Session, skip: int = 0, limit: int = 100):
+    """
+    Retrieve all job records.
+    """
+    return db.query(models.Job).offset(skip).limit(limit).all()
+
 # --- Screening CRUD Functions ---
 
 def create_screening(db: Session, screening: schemas.ScreeningCreate, job_id: int, candidate_id: int):
