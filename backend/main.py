@@ -25,7 +25,31 @@ def get_db():
     finally:
         db.close()
 
-# --- API Endpoint ---
+# --- GET Endpoints for Frontend ---
+
+@app.get("/jobs/", response_model=List[schemas.Job])
+def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """
+    Retrieve a list of all jobs in the database.
+    This powers the main dashboard view on the frontend.
+    """
+    jobs = crud.get_jobs(db, skip=skip, limit=limit)
+    return jobs
+
+@app.get("/jobs/{job_id}/screenings/", response_model=List[schemas.Screening])
+def read_screenings_for_job(job_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve a ranked list of all screenings for a specific job.
+    This powers the ranked candidate list on the frontend.
+    """
+    screenings = db.query(models.Screening)\
+                   .filter(models.Screening.job_id == job_id)\
+                   .order_by(models.Screening.final_score.desc())\
+                   .all()
+    return screenings
+
+# --- POST Endpoint ---
+
 @app.post("/screen/", response_model=List[schemas.Screening])
 async def screen_multiple_resumes(
     job_title: Optional[str] = Form(None),
@@ -91,7 +115,7 @@ async def screen_multiple_resumes(
             )
             db_candidate = crud.create_candidate(db, candidate=candidate_schema)
 
-        # 6. Prepare data and handle Job creation/retrieval.
+        # 6. Prepare data and handle Job creation/retrieval (only runs once).
         if db_job is None:
             structured_jd = analysis_result.get("structured_jd", {})
             final_job_title = job_title if job_title else structured_jd.get("job_title", f"Untitled Job - {uuid.uuid4().hex[:6]}")
@@ -119,25 +143,3 @@ async def screen_multiple_resumes(
         raise HTTPException(status_code=400, detail="No valid resumes were processed.")
 
     return processed_screenings
-
-@app.get("/jobs/", response_model=List[schemas.Job])
-def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """
-    Retrieve a list of all jobs in the database.
-    """
-    jobs = crud.get_jobs(db, skip=skip, limit=limit)
-    return jobs
-
-@app.get("/jobs/{job_id}/screenings/", response_model=List[schemas.Screening])
-def read_screenings_for_job(job_id: int, db: Session = Depends(get_db)):
-    """
-    Retrieve a ranked list of all screenings for a specific job.
-    """
-    screenings = db.query(models.Screening)\
-                   .filter(models.Screening.job_id == job_id)\
-                   .order_by(models.Screening.final_score.desc())\
-                   .all()
-    if not screenings:
-        #TODO HTTPException(status_code=404, detail="No screenings found for this job")
-        pass
-    return screenings

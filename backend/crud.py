@@ -27,6 +27,12 @@ def get_job_by_title(db: Session, title: str):
     """
     return db.query(models.Job).filter(models.Job.title == title).first()
 
+def get_jobs(db: Session, skip: int = 0, limit: int = 100):
+    """
+    Retrieve all job records.
+    """
+    return db.query(models.Job).offset(skip).limit(limit).all()
+
 def create_job(db: Session, job: schemas.JobCreate):
     """
     Create a new job record in the database.
@@ -36,12 +42,6 @@ def create_job(db: Session, job: schemas.JobCreate):
     db.commit()
     db.refresh(db_job)
     return db_job
-
-def get_jobs(db: Session, skip: int = 0, limit: int = 100):
-    """
-    Retrieve all job records.
-    """
-    return db.query(models.Job).offset(skip).limit(limit).all()
 
 # --- Screening CRUD Functions ---
 
