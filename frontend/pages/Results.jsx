@@ -68,10 +68,18 @@ export default function Results() {
       ) : (
         <div className="grid gap-4">
           {screenings.map((screening, index) => {
-            const analysis = screening.skill_match_analysis;
-            const executiveSummary =
-              analysis?.holistic_analysis?.executive_summary ||
-              "No summary available";
+            // Generate a simple summary from must_have skills
+            const mustHaveSkills =
+              screening.skill_match_analysis?.skill_match_analysis
+                ?.must_have_matches || [];
+            const matchedCount = mustHaveSkills.filter(
+              (s) => s.proficiency_level > 0
+            ).length;
+            const totalRequired = mustHaveSkills.length;
+
+            const summary = `Matched ${matchedCount} out of ${totalRequired} required skills. Score: ${parseFloat(
+              screening.final_score
+            ).toFixed(1)}/100`;
 
             return (
               <div
@@ -88,7 +96,7 @@ export default function Results() {
                         {screening.candidate.full_name || "Unknown Candidate"}
                       </h3>
                     </div>
-                    <p className="text-gray-700 mb-3">{executiveSummary}</p>
+                    <p className="text-gray-700 mb-3">{summary}</p>
                     <button
                       onClick={() => setSelectedCandidate(screening)}
                       className="text-blue-600 hover:underline text-sm font-medium"
@@ -109,7 +117,6 @@ export default function Results() {
         </div>
       )}
 
-      {/* Detailed Analysis Modal */}
       {selectedCandidate && (
         <AnalysisModal
           screening={selectedCandidate}
@@ -121,21 +128,52 @@ export default function Results() {
 }
 
 function AnalysisModal({ screening, onClose }) {
-  const analysis = screening.skill_match_analysis;
-  const skillAnalysis = analysis?.skill_match_analysis || {};
-  const experienceAnalysis = analysis?.experience_match_analysis || {};
-  const holisticAnalysis = analysis?.holistic_analysis || {};
+  const analysis = screening.skill_match_analysis?.skill_match_analysis || {};
+  const mustHaveMatches = analysis.must_have_matches || [];
+  const niceToHaveMatches = analysis.nice_to_have_matches || [];
+
+  // Get proficiency label
+  const getProficiencyLabel = (level) => {
+    switch (level) {
+      case 0:
+        return "Not Found";
+      case 1:
+        return "Mentioned";
+      case 2:
+        return "Used in Project";
+      case 3:
+        return "Central Skill";
+      default:
+        return "Unknown";
+    }
+  };
+
+  // Get proficiency color
+  const getProficiencyColor = (level) => {
+    switch (level) {
+      case 0:
+        return "bg-red-100 text-red-800";
+      case 1:
+        return "bg-yellow-100 text-yellow-800";
+      case 2:
+        return "bg-green-100 text-green-800";
+      case 3:
+        return "bg-green-200 text-green-900";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
           <h2 className="text-2xl font-bold text-gray-900">
             {screening.candidate.full_name}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
+            className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
           >
             ×
           </button>
@@ -160,97 +198,91 @@ function AnalysisModal({ screening, onClose }) {
             </div>
           </div>
 
-          {/* Executive Summary */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Executive Summary
-            </h3>
-            <p className="text-gray-700">
-              {holisticAnalysis.executive_summary}
-            </p>
-          </div>
-
-          {/* Skills Match */}
+          {/* Must-Have Skills */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              Skills Match
+              Required Skills
             </h3>
-            {skillAnalysis.matched_skills?.map((skill, idx) => (
-              <div key={idx} className="mb-4 p-4 bg-green-50 rounded-lg">
-                <div className="font-medium text-green-900 mb-1">
-                  {skill.skill}
-                </div>
-                <div className="text-sm text-gray-700 mb-2">
-                  {skill.reasoning}
-                </div>
-                {skill.evidence && (
-                  <div className="text-sm italic text-gray-600 border-l-2 border-green-400 pl-3">
-                    "{skill.evidence}"
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {skillAnalysis.missing_skills?.length > 0 && (
-              <div className="mt-4">
-                <div className="font-medium text-gray-900 mb-2">
-                  Missing Skills
-                </div>
-                {skillAnalysis.missing_skills.map((skill, idx) => (
-                  <div key={idx} className="mb-2 p-3 bg-gray-100 rounded">
-                    <div className="font-medium text-gray-700">
-                      {skill.skill}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {skill.reasoning}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Experience Match */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Experience Analysis
-            </h3>
-            <div className="grid grid-cols-2 gap-4 mb-3">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-600">Required Experience</div>
-                <div className="text-xl font-semibold">
-                  {experienceAnalysis.required_years || "N/A"} years
-                </div>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-600">
-                  Candidate Experience
-                </div>
-                <div className="text-xl font-semibold">
-                  {experienceAnalysis.calculated_candidate_years || "N/A"} years
-                </div>
-              </div>
-            </div>
-            <p className="text-gray-700">{experienceAnalysis.reasoning}</p>
-          </div>
-
-          {/* Red Flags */}
-          {holisticAnalysis.red_flags?.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-red-900 mb-2">
-                Red Flags
-              </h3>
-              {holisticAnalysis.red_flags.map((flag, idx) => (
+            <div className="space-y-3">
+              {mustHaveMatches.map((skill, idx) => (
                 <div
                   key={idx}
-                  className="p-3 bg-red-50 border-l-4 border-red-400 mb-2"
+                  className={`p-4 rounded-lg border-l-4 ${
+                    skill.proficiency_level === 0
+                      ? "bg-red-50 border-red-400"
+                      : "bg-green-50 border-green-400"
+                  }`}
                 >
-                  <div className="font-medium text-red-900">{flag.flag}</div>
-                  <div className="text-sm text-red-700">{flag.reasoning}</div>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-medium text-gray-900">
+                      {skill.skill}
+                    </div>
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded ${getProficiencyColor(
+                        skill.proficiency_level
+                      )}`}
+                    >
+                      {getProficiencyLabel(skill.proficiency_level)}
+                    </span>
+                  </div>
+                  {skill.evidence_from_resume && (
+                    <div className="text-sm text-gray-700 italic mt-2 pl-3 border-l-2 border-gray-300">
+                      "{skill.evidence_from_resume}"
+                    </div>
+                  )}
+                  {!skill.evidence_from_resume &&
+                    skill.proficiency_level === 0 && (
+                      <div className="text-sm text-red-600 mt-2">
+                        No evidence found in resume
+                      </div>
+                    )}
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Nice-to-Have Skills */}
+          {niceToHaveMatches.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Additional Skills (Nice-to-Have)
+              </h3>
+              <div className="space-y-3">
+                {niceToHaveMatches.map((skill, idx) => (
+                  <div
+                    key={idx}
+                    className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="font-medium text-gray-900">
+                        {skill.skill}
+                      </div>
+                      <span
+                        className={`text-xs font-semibold px-2 py-1 rounded ${getProficiencyColor(
+                          skill.proficiency_level
+                        )}`}
+                      >
+                        {getProficiencyLabel(skill.proficiency_level)}
+                      </span>
+                    </div>
+                    {skill.evidence_from_resume && (
+                      <div className="text-sm text-gray-700 italic mt-2 pl-3 border-l-2 border-gray-300">
+                        "{skill.evidence_from_resume}"
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
+
+          {/* Contact Info */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600">Contact Information</div>
+            <div className="text-gray-900 font-medium">
+              {screening.candidate.contact_info}
+            </div>
+          </div>
         </div>
       </div>
     </div>
