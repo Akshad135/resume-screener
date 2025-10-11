@@ -83,89 +83,107 @@ Built for recruiters and hiring managers to save time and make data-driven hirin
 
 ## 🤖 LLM Prompts & Strategy
 
-Our system uses a multi-stage LLM pipeline with carefully crafted prompts to ensure accurate, evidence-based candidate evaluation. All prompts are available in [`backend/app/prompts.py`](link-to-file).
+Our system uses a multi-stage LLM pipeline with carefully crafted prompts to ensure accurate, evidence-based candidate evaluation. This strategy is designed to be **generous and inference-based**, recognizing that candidates often have transferable skills not explicitly listed.
 
-### Prompt Design Philosophy
+The pipeline executes in the following order:
 
-We employ a **generous and inference-based** approach to skill matching, recognizing that:
-
-- Related technologies demonstrate transferable skills
-- Framework usage implies knowledge of underlying technologies
-- Entry-level candidates should be evaluated on potential, not perfection
+---
 
 ### Stage 1: Job Description Deconstruction
 
-**Model**: `llama-3.1-8b-instant` | **Prompt**: [`JD_DECONSTRUCTION_PROMPT`](link-to-file)
+- **Model**: `llama-3.1-8b-instant`
+- **Prompt**: [`analyzer/prompts.py`](https://github.com/Akshad135/resume-screener/blob/6a0a901b52327309f8386787b8b160cb322d13f6/analyzer/prompts.py#L2)
+- **Purpose**: To parse an unstructured job description into a structured JSON rubric. This is done once per job posting.
 
-Parses unstructured job descriptions into a structured format with must-have and nice-to-have skills. The prompt is designed to:
+This initial stage identifies the core requirements of the role. The prompt is designed to:
 
-- Identify role seniority (Entry/Mid/Senior) to adjust screening criteria
-- Limit must-have skills to core competencies (3-5 for entry-level, 5-8 for senior)
-- Categorize advanced/specialized skills as nice-to-have to avoid over-filtering
-- Extract minimum experience requirements
+- Determine the **seniority level** (e.g., Entry-level, Mid-level, Senior) to adjust screening criteria.
+- Conservatively limit **`must_have_skills`** to only the most essential competencies (3-5 for entry-level roles) to prevent premature disqualification.
+- Categorize advanced or preferred technologies as **`nice_to_have_skills`**.
+- Extract the minimum **years of experience** required.
 
-This conservative approach to must-haves prevents false negatives from overly restrictive job postings.
+---
 
-### Stage 2: Combined Skill Analysis
+### Stage 2: Combined Skill Analysis & Summary
 
-**Model**: `groq/compound` | **Prompt**: [`COMBINED_ANALYSIS_PROMPT`](link-to-file)
+- **Model**: `groq/compound`
+- **Prompt**: [`analyzer/prompts.py`](https://github.com/Akshad135/resume-screener/blob/6a0a901b52327309f8386787b8b160cb322d13f6/analyzer/prompts.py#L47)
+- **Purpose**: The core of the system. This stage analyzes the resume against the structured job requirements, assigns proficiency scores with evidence, and generates a summary.
 
-The core of our system - matches candidate skills to job requirements with evidence extraction. Key features:
+This is the most complex stage, guided by several key principles:
 
 **Mandatory Inference Rules:**
+The model is instructed to give credit for implied skills. For example:
 
-- Framework usage implies tool knowledge (Spring Boot → REST APIs, Maven/Gradle, Hibernate)
-- Related frameworks count as skill matches (Flask/Django → FastAPI at Level 2)
-- Cloud platforms are transferable (AWS experience → Azure/GCP at Level 2)
+- **Spring Boot** usage implies proficiency in **REST APIs, Hibernate/JPA, and Maven/Gradle**.
+- Experience with one cloud platform (e.g., **AWS**) implies transferable knowledge for others (**Azure/GCP**).
+- Mentioning a similar framework (e.g., **Django/Flask**) counts as a match for a requirement like **FastAPI**.
 
 **Proficiency Scoring System:**
+A four-tier system rates each skill match:
 
-- **Level 3** (Central Skill): Multiple substantial projects, clear expertise
-- **Level 2** (Used in Project): Direct usage OR heavily implied by tech stack OR similar technology
-- **Level 1** (Mentioned): Listed anywhere OR adjacent technology present
-- **Level 0** (Not Found): Zero evidence AND no related technologies
+- **Level 3 (Central Skill)**: Used in multiple substantial projects; core to their experience.
+- **Level 2 (Used in Project)**: Directly used or strongly implied by the tech stack or a similar technology.
+- **Level 1 (Mentioned)**: Listed anywhere in the resume or an adjacent technology is present.
+- **Level 0 (Not Found)**: No evidence and no related skills found.
 
-**Evidence Extraction:**
-Every proficiency assignment includes the actual quote from the resume that justifies the rating, ensuring transparency and auditability.
+**Evidence & Summary:**
 
-**Executive Summary Generation:**
-Produces a concise 2-3 sentence assessment highlighting the candidate's strongest matches and noting critical gaps, if any.
+- **Evidence Extraction**: For complete transparency, every proficiency score is justified with a direct quote from the resume.
+- **Executive Summary**: A concise, 2-3 sentence optimistic summary highlights the candidate's strengths and overall fit for the role.
+
+---
 
 ### Stage 3: Holistic Resume Parsing
 
-**Model**: `llama-3.1-8b-instant` | **Prompt**: [`HOLISTIC_DATA_PARSER_PROMPT`](link-to-file)
+- **Model**: `llama-3.1-8b-instant`
+- **Prompt**: [`analyzer/prompts.py`](https://github.com/Akshad135/resume-screener/blob/6a0a901b52327309f8386787b8b160cb322d13f6/analyzer/prompts.py#L137)
+- **Purpose**: To extract all non-skill-related structured data from the resume text.
 
-Extracts structured candidate data for scoring calculation:
+This prompt gathers the foundational data points needed for a comprehensive evaluation:
 
-- Full name and contact information (email/phone)
-- Work experience and projects with durations
-- Certifications and awards
-- Leadership roles and extracurricular activities
+- Candidate's full name and contact information (email/phone).
+- A combined list of all **work experience and projects**, including titles and durations.
+- Lists of **certifications, awards, leadership roles**, and extracurricular activities.
 
-This data feeds into the weighted scoring algorithm, where certifications and leadership provide bonus points.
+---
 
-### Stage 4: Resume Quality Assessment
+### Stage 4: Experience Calculation
 
-**Model**: `llama-3.1-8b-instant` | **Prompt**: [`RESUME_QUALITY_PROMPT`](link-to-file)
+- **Model**: `llama-3.1-8b-instant`
+- **Prompt**: [`analyzer/prompts.py`](https://github.com/Akshad135/resume-screener/blob/6a0a901b52327309f8386787b8b160cb322d13f6/analyzer/prompts.py#L182)
+- **Purpose**: To accurately calculate the candidate's total years of experience.
 
-Evaluates **content quality**, not formatting (since we only have raw text). Focuses on:
+Using the `experience_and_projects` list from the previous stage, this specialized prompt:
 
-- Clarity of accomplishments and technical descriptions
-- Quantification and impact metrics (e.g., "improved performance by 30%")
-- Depth of technical detail in project descriptions
-- Professional language and completeness
+- Parses various duration formats (e.g., "Jan 2023 - Present", "6 months").
+- Correctly interprets "Present" as the current date (Oct 2025) for accurate calculation.
+- Returns the **total years of experience** as a single floating-point number.
 
-**Quality Score Range**: 0.70 (poor content) to 1.00 (excellent content)
+---
 
-**Red Flags**: Only identifies serious issues like missing experience sections, contradictory information, or unprofessional language. Minor typos and style choices are ignored.
+### Stage 5: Resume Quality Assessment
 
-The quality score acts as a multiplier on the final match score, rewarding well-documented experience.
+- **Model**: `llama-3.1-8b-instant`
+- **Prompt**: [`analyzer/prompts.py`](https://github.com/Akshad135/resume-screener/blob/6a0a901b52327309f8386787b8b160cb322d13f6/analyzer/prompts.py#L195)
+- **Purpose**: To evaluate the **content quality** of the resume, not its visual formatting.
+
+This final stage provides a score that acts as a multiplier on the candidate's final match score, rewarding well-documented experience. The assessment focuses on:
+
+- **Clarity and Impact**: How well accomplishments are described and quantified (e.g., "improved performance by 30%").
+- **Technical Depth**: The level of detail provided in project and experience descriptions.
+- **Professionalism**: The overall tone and completeness of the narrative.
+
+**Scoring & Red Flags:**
+
+- The **`quality_score`** ranges from `0.50` (Poor) to `1.00` (Excellent).
+- **`red_flags`** are identified only for serious issues like missing experience sections, contradictory information, or unprofessional language. Minor typos are ignored.
 
 ### Scoring Algorithm
 
 The final score (0-100) is calculated using:
 
-```
+```bash
 raw_score = (must_have_proficiency_points * weight)
             + (nice_to_have_proficiency_points * weight)
             + (experience_match_points)
