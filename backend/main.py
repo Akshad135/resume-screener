@@ -102,7 +102,7 @@ def read_screenings_for_job(job_id: int, db: Session = Depends(get_db)):
         )
 
 
-# --- POSTS Endpoint ---
+# --- POST Endpoints ---
 
 @app.post("/screen/", response_model=List[schemas.Screening])
 async def screen_multiple_resumes( # Changed back to async def
@@ -302,3 +302,53 @@ async def add_candidates_to_job(
     except Exception as e:
         print(f"Error adding candidates to job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process candidates: {str(e)}")
+
+
+# --- DELETE Endpoints ---
+
+@app.delete("/jobs/{job_id}")
+def delete_job(job_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a job and all its associated screenings.
+    """
+    try:
+        # Check if job exists
+        job = db.query(models.Job).filter(models.Job.id == job_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail=f"Job with id {job_id} not found")
+        
+        # Delete using crud function
+        success = crud.delete_job(db, job_id)
+        if success:
+            return {"message": f"Job {job_id} and all associated screenings deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete job")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete job")
+
+
+@app.delete("/screenings/{screening_id}")
+def delete_screening(screening_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a specific candidate screening from a job.
+    """
+    try:
+        # Check if screening exists
+        screening = db.query(models.Screening).filter(models.Screening.id == screening_id).first()
+        if not screening:
+            raise HTTPException(status_code=404, detail=f"Screening with id {screening_id} not found")
+        
+        # Delete using crud function
+        success = crud.delete_screening(db, screening_id)
+        if success:
+            return {"message": f"Screening {screening_id} deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete screening")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting screening {screening_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete screening")

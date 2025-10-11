@@ -43,6 +43,20 @@ def create_job(db: Session, job: schemas.JobCreate):
     db.refresh(db_job)
     return db_job
 
+def delete_job(db: Session, job_id: int):
+    """
+    Delete a job and all associated screenings.
+    """
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if job:
+        # Delete all screenings associated with this job first
+        db.query(models.Screening).filter(models.Screening.job_id == job_id).delete()
+        # Delete the job
+        db.delete(job)
+        db.commit()
+        return True
+    return False
+
 # --- Screening CRUD Functions ---
 
 def create_screening(db: Session, screening: schemas.ScreeningCreate, job_id: int, candidate_id: int):
@@ -64,3 +78,14 @@ def get_screenings_for_job(db: Session, job_id: int, skip: int = 0, limit: int =
     Retrieve all screening records for a specific job.
     """
     return db.query(models.Screening).filter(models.Screening.job_id == job_id).offset(skip).limit(limit).all()
+
+def delete_screening(db: Session, screening_id: int):
+    """
+    Delete a specific screening record.
+    """
+    screening = db.query(models.Screening).filter(models.Screening.id == screening_id).first()
+    if screening:
+        db.delete(screening)
+        db.commit()
+        return True
+    return False
