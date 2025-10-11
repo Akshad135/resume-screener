@@ -217,38 +217,7 @@ This configuration balances cost, speed, and quality for production use.
 
 ## 📊 Database Schema
 
-### Tables
-
-**jobs**
-
-- `id`: Integer (Primary Key)
-- `title`: String (Job title)
-- `created_at`: DateTime
-
-**candidates**
-
-- `id`: Integer (Primary Key)
-- `full_name`: String
-- `contact_info`: String
-
-**screenings**
-
-- `id`: Integer (Primary Key)
-- `job_id`: Foreign Key → jobs.id
-- `candidate_id`: Foreign Key → candidates.id
-- `final_score`: Integer (0-100)
-- `unadjusted_score`: Integer
-- `quality_multiplier`: Float
-- `skill_match_analysis`: JSON (Skill analysis results)
-- `structured_resume`: JSON (Parsed resume data)
-- `red_flags`: JSON (red flags)
-- `created_at`: DateTime
-
-**Relationships**:
-
-- One job → Many screenings
-- One candidate → Many screenings
-- Cascade delete: Deleting a job deletes all its screenings
+<img src="assets/db_schema.excalidraw.png" alt="Database Schema Diagram" width="650"/>
 
 ## 🔌 API Endpoints
 
@@ -298,80 +267,80 @@ This configuration balances cost, speed, and quality for production use.
 
 1. **Clone the repository**
 
-```
-git clone https://github.com/akshad135/smart-resume-screener.git
-cd smart-resume-screener
-```
+   ```bash
+   git clone https://github.com/akshad135/smart-resume-screener.git
+   cd smart-resume-screener
+   ```
 
 2. **Navigate to backend directory**
 
-```
-cd backend
-```
+   ```bash
+   cd backend
+   ```
 
 3. **Create virtual environment**
 
-```
-Windows
-python -m venv venv
-venv\Scripts\activate
+   ```bash
+   # Windows
+   python -m venv venv
+   venv\Scripts\activate
 
-Linux/Mac
-python3 -m venv venv
-source venv/bin/activate
-```
+   # Linux/Mac
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
 4. **Install dependencies**
 
-```
-pip install -r requirements.txt
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 5. **Create `.env` file**
 
-Create a `.env` file in the `backend` directory with:
+   Create a `.env` file in the `backend` directory with:
 
-```
-DATABASE_URL=postgresql://username:password@host:port/database
-GROQ_API_KEY=your_groq_api_key_here
-```
+   ```bash
+   DATABASE_URL=postgresql://username:password@host:port/database
+   GROQ_API_KEY=your_groq_api_key_here
+   ```
 
 6. **Run database migrations**
 
-Tables will be automatically created on first run by SQLAlchemy.
+   Tables will be automatically created on first run by SQLAlchemy.
 
 7. **Start the backend server**
 
-```
-uvicorn app.main:app --reload
-```
+   ```bash
+   uvicorn app.main:app --reload
+   ```
 
-Backend will run on `http://localhost:8000`
+   Backend will run on `http://localhost:8000`
 
-**Verify backend**: Visit `http://localhost:8000/docs` to see the API documentation.
+   **Verify backend**: Visit `http://localhost:8000/docs` to see the API documentation.
 
 ### Frontend Setup
 
 1. **Open a new terminal** and navigate to frontend directory
 
-```
-cd frontend
-```
+   ```bash
+   cd frontend
+   ```
 
 2. **Install dependencies**
 
-```
-npm install
-```
+   ```bash
+   npm install
+   ```
 
 3. **Start development server**
 
-```
-npm run dev
-```
+   ```bash
+   npm run dev
+   ```
 
-Frontend will run on `http://localhost:5173`
+   Frontend will run on `http://localhost:5173`
 
 4. **Open in browser**
 
-Navigate to `http://localhost:5173` to access the application.
+   Navigate to `http://localhost:5173` to access the application.
