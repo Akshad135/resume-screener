@@ -53,7 +53,6 @@ export default function Upload() {
 
       const screenings = await response.json();
 
-      // The response is a list of screenings, get the job_id from the first one
       if (screenings && screenings.length > 0) {
         navigate(`/jobs/${screenings[0].job_id}`);
       } else {
@@ -64,6 +63,15 @@ export default function Upload() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const removeResumeFile = (indexToRemove) => {
+    setFormData({
+      ...formData,
+      resumeFiles: formData.resumeFiles.filter(
+        (_, index) => index !== indexToRemove
+      ),
+    });
   };
 
   return (
@@ -117,13 +125,25 @@ export default function Upload() {
             onChange={(e) =>
               setFormData({ ...formData, jdFile: e.target.files[0] })
             }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             disabled={loading}
             required
           />
           <p className="text-sm text-gray-500 mt-1">
             Accepted formats: .pdf, .txt
           </p>
+          {formData.jdFile && (
+            <div className="mt-2 text-sm text-green-600 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {formData.jdFile.name}
+            </div>
+          )}
         </div>
 
         <div className="mb-6">
@@ -134,24 +154,48 @@ export default function Upload() {
             type="file"
             accept=".pdf"
             multiple
-            onChange={(e) =>
+            onChange={(e) => {
+              const newFiles = Array.from(e.target.files);
               setFormData({
                 ...formData,
-                resumeFiles: Array.from(e.target.files),
-              })
-            }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                resumeFiles: [...formData.resumeFiles, ...newFiles],
+              });
+              e.target.value = "";
+            }}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             disabled={loading}
-            required
           />
           <p className="text-sm text-gray-500 mt-1">
-            Accepted format: .pdf (multiple files allowed)
+            Select multiple files at once or add them one by one
           </p>
+
           {formData.resumeFiles.length > 0 && (
-            <p className="text-sm text-gray-700 mt-2">
-              {formData.resumeFiles.length} file
-              {formData.resumeFiles.length !== 1 ? "s" : ""} selected
-            </p>
+            <div className="mt-3 space-y-2">
+              <p className="text-sm font-medium text-gray-700">
+                {formData.resumeFiles.length} resume
+                {formData.resumeFiles.length !== 1 ? "s" : ""} selected:
+              </p>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {formData.resumeFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded text-sm"
+                  >
+                    <span className="text-gray-700 truncate flex-1">
+                      {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeResumeFile(index)}
+                      className="text-red-600 hover:text-red-800 ml-2 font-medium flex-shrink-0"
+                      disabled={loading}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
@@ -165,9 +209,13 @@ export default function Upload() {
 
         {loading && (
           <div className="mt-4 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 mt-2">
-              Analyzing resumes... This may take a minute
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+            <p className="text-gray-600">
+              Analyzing {formData.resumeFiles.length} resume
+              {formData.resumeFiles.length !== 1 ? "s" : ""}...
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              This may take a few minutes
             </p>
           </div>
         )}
