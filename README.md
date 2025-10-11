@@ -44,7 +44,34 @@ Built for recruiters and hiring managers to save time and make data-driven hirin
 
 ## 🏗️ System Architecture
 
-[Mermaid diagram will go here]
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/high_level.png" alt="Description for first image" width="200"/>
+      <br>
+      <em>High Level Overview</em>
+    </td>
+    <td align="center">
+      <img src="assets/Data Ingestion Flow.png" alt="Description for second image" width="200"/>
+      <br>
+      <em>Data Ingestion Flow</em>
+    </td>
+      <td align="center">
+      <img src="assets/Scoring, Persistence & Response.png" alt="Description for second image" width="600"/>
+      <br>
+      <em>Scoring, Persistence & Response</em>
+    </td>
+  </tr>
+
+</table>
+  <tr>
+      <td align="center">
+      <img src="assets/main_arch.png" alt="Description for second image" width="600"/>
+      <br>
+     <em align="center">Main Architecture</em>
+    </td>
+  </tr>
+  <br><br>
 
 **Data Flow:**
 
@@ -217,7 +244,7 @@ This configuration balances cost, speed, and quality for production use.
 
 ## 📊 Database Schema
 
-<img src="assets/db_schema.excalidraw.png" alt="Database Schema Diagram" width="650"/>
+<img src="assets/db_schema.png" alt="Database Schema Diagram" width="650"/>
 
 ## 🔌 API Endpoints
 
