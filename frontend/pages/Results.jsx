@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API_BASE_URL from "../api/config";
 
@@ -9,6 +9,10 @@ export default function Results() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+  const [uploadingResumes, setUploadingResumes] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchScreenings();
@@ -24,6 +28,45 @@ export default function Results() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddResumes = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploadingResumes(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("resume_files", file);
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/jobs/${jobId}/add-candidates/`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to add resumes");
+      }
+
+      await fetchScreenings();
+
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (err) {
+      setUploadError(err.message);
+    } finally {
+      setUploadingResumes(false);
     }
   };
 
@@ -55,10 +98,57 @@ export default function Results() {
         >
           ← Back to Dashboard
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">{jobTitle}</h1>
-        <p className="text-gray-600 mt-2">
-          {screenings.length} candidates ranked
-        </p>
+
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{jobTitle}</h1>
+            <p className="text-gray-600 mt-2">
+              {screenings.length} candidates ranked
+            </p>
+          </div>
+
+          {/* Add Resume Button */}
+          <div className="flex flex-col items-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              multiple
+              onChange={handleAddResumes}
+              className="hidden"
+              disabled={uploadingResumes}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingResumes}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition flex items-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              {uploadingResumes ? "Processing..." : "Add More Candidates"}
+            </button>
+            {uploadingResumes && (
+              <p className="text-sm text-gray-600">Analyzing new resumes...</p>
+            )}
+          </div>
+        </div>
+
+        {uploadError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            {uploadError}
+          </div>
+        )}
       </div>
 
       {screenings.length === 0 ? (
@@ -68,18 +158,9 @@ export default function Results() {
       ) : (
         <div className="grid gap-4">
           {screenings.map((screening, index) => {
-            // Generate a simple summary from must_have skills
-            const mustHaveSkills =
-              screening.skill_match_analysis?.skill_match_analysis
-                ?.must_have_matches || [];
-            const matchedCount = mustHaveSkills.filter(
-              (s) => s.proficiency_level > 0
-            ).length;
-            const totalRequired = mustHaveSkills.length;
-
             const summary =
               screening.skill_match_analysis?.executive_summary ||
-              "No summary available";
+              "Executive summary not available for this screening.";
 
             return (
               <div
@@ -127,6 +208,7 @@ export default function Results() {
   );
 }
 
+// AnalysisModal component
 function AnalysisModal({ screening, onClose }) {
   const analysis = screening.skill_match_analysis?.skill_match_analysis || {};
   const mustHaveMatches = analysis.must_have_matches || [];

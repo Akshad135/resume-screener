@@ -102,7 +102,7 @@ def read_screenings_for_job(job_id: int, db: Session = Depends(get_db)):
         )
 
 
-# --- POST Endpoint ---
+# --- POSTS Endpoint ---
 
 @app.post("/screen/", response_model=List[schemas.Screening])
 async def screen_multiple_resumes( # Changed back to async def
@@ -200,3 +200,105 @@ async def screen_multiple_resumes( # Changed back to async def
         raise HTTPException(status_code=400, detail="No valid resumes were processed.")
 
     return processed_screenings
+
+
+@app.post("/jobs/{job_id}/add-candidates/", response_model=List[schemas.Screening])
+async def add_candidates_to_job(
+    job_id: int,
+    resume_files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Add new candidates to an existing job without re-uploading the JD.
+    Reuses the stored structured_jd from the database.
+    """
+    try:
+        # 1. Fetch the job and verify it exists
+        db_job = db.query(models.Job).filter(models.Job.id == job_id).first()
+        if not db_job:
+            raise HTTPException(status_code=404, detail=f"Job with id {job_id} not found")
+        
+        # 2. Get the pre-analyzed JD structure
+        structured_jd = db_job.structured_jd
+        if not structured_jd:
+            raise HTTPException(status_code=400, detail="Job description structure not found")
+        
+        processed_screenings = []
+        
+        # 3. Loop through each uploaded resume file
+        for resume_file in resume_files:
+            print(f"\n--- Processing resume: {resume_file.filename} ---")
+            if resume_file.content_type != 'application/pdf':
+                print(f"Skipping non-PDF file: {resume_file.filename}")
+                continue
+
+            resume_bytes = await resume_file.read()
+
+            # 4. Run the core analyzer for the current resume
+            try:
+                analysis_result = analyze_single_resume(
+                    structured_jd=structured_jd,
+                    resume_file_content=resume_bytes,
+                    resume_filename=resume_file.filename
+                )
+                if "error" in analysis_result:
+                    print(f"Skipping resume {resume_file.filename} due to analysis error: {analysis_result['error']}")
+                    continue
+            except Exception as e:
+                print(f"Skipping resume {resume_file.filename} due to unexpected error: {e}")
+                continue
+
+            # 5. Extract raw text from resume for database storage
+            resume_text = extract_text_from_pdf(resume_bytes)
+            if not resume_text:
+                print(f"Skipping resume {resume_file.filename} because text could not be extracted.")
+                continue
+
+            # 6. Prepare candidate data
+            structured_resume = analysis_result.get("structured_resume", {})
+            candidate_contact = structured_resume.get("contact_info", f"unknown_{uuid.uuid4()}@example.com")
+            candidate_name = structured_resume.get("full_name", "Unknown Candidate")
+
+            # 7. Check if candidate already exists
+            db_candidate = crud.get_candidate_by_contact(db, contact=candidate_contact)
+            if not db_candidate:
+                candidate_schema = schemas.CandidateCreate(
+                    contact_info=candidate_contact,
+                    full_name=candidate_name,
+                    raw_resume_text=resume_text,
+                    structured_resume=structured_resume,
+                    total_experience=Decimal(str(analysis_result["llm_analysis"]["experience_match_analysis"]["calculated_candidate_years"]))
+                )
+                db_candidate = crud.create_candidate(db, candidate=candidate_schema)
+
+            # 8. Check if this candidate was already screened for this job
+            existing_screening = db.query(models.Screening)\
+                .filter(models.Screening.job_id == job_id)\
+                .filter(models.Screening.candidate_id == db_candidate.id)\
+                .first()
+            
+            if existing_screening:
+                print(f"Candidate {candidate_name} already screened for this job. Skipping.")
+                continue
+
+            # 9. Create the screening record
+            screening_schema = schemas.ScreeningCreate(
+                final_score=Decimal(str(analysis_result.get("final_score"))),
+                quality_multiplier=Decimal(str(analysis_result["quality_assessment"]["quality_score"])),
+                skill_match_analysis=analysis_result.get("llm_analysis", {})
+            )
+            
+            db_screening = crud.create_screening(db, screening=screening_schema, job_id=db_job.id, candidate_id=db_candidate.id)
+            processed_screenings.append(db_screening)
+            print(f"--- Successfully processed and saved: {resume_file.filename} ---")
+
+        if not processed_screenings:
+            raise HTTPException(status_code=400, detail="No valid resumes were processed.")
+
+        return processed_screenings
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error adding candidates to job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process candidates: {str(e)}")
