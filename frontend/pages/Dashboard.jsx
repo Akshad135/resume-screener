@@ -144,9 +144,9 @@ export default function Dashboard() {
           {jobs.map((job) => (
             <div
               key={job.id}
-              className="bg-white rounded-lg shadow hover:shadow-md transition p-6 border border-gray-200 relative group"
+              className="bg-white rounded-lg shadow hover:shadow-md transition border border-gray-200 relative group"
             >
-              <Link to={`/jobs/${job.id}`} className="block">
+              <Link to={`/jobs/${job.id}`} className="block p-6">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -157,60 +157,67 @@ export default function Dashboard() {
                       {job.candidate_count !== 1 ? "s" : ""} screened
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-500 mb-1">
-                      {new Date(job.created_at).toLocaleDateString()}
+                  <div className="flex items-center gap-4">
+                    {/* Date/Time */}
+                    <div className="text-right">
+                      <div className="text-sm text-gray-500 mb-1">
+                        {new Date(job.created_at).toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(job.created_at).toLocaleTimeString()}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(job.created_at).toLocaleTimeString()}
-                    </div>
+
+                    {/* Delete Button */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDeleteJob(job.id, job.title, e);
+                      }}
+                      disabled={deletingJobId === job.id}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 text-white p-2 rounded hover:bg-red-700 disabled:bg-gray-400"
+                      title="Delete job"
+                    >
+                      {deletingJobId === job.id ? (
+                        <svg
+                          className="w-5 h-5 animate-spin"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
               </Link>
-
-              {/* Delete Button - Appears on hover */}
-              <button
-                onClick={(e) => handleDeleteJob(job.id, job.title, e)}
-                disabled={deletingJobId === job.id}
-                className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600 text-white p-2 rounded hover:bg-red-700 disabled:bg-gray-400"
-                title="Delete job"
-              >
-                {deletingJobId === job.id ? (
-                  <svg
-                    className="w-5 h-5 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                )}
-              </button>
             </div>
           ))}
         </div>
