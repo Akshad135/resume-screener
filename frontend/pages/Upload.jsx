@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../api/config";
 
@@ -11,6 +11,40 @@ export default function Upload() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progressSteps, setProgressSteps] = useState([]);
+
+  useEffect(() => {
+    if (!loading) {
+      setProgressSteps([]);
+      return;
+    }
+
+    const steps = [
+      { text: "Deconstructing job description...", delay: 300 },
+      { text: "✓ Job description analyzed", delay: 1500 },
+    ];
+    formData.resumeFiles.forEach((file, idx) => {
+      steps.push(
+        { text: `Processing ${file.name}...`, delay: 2000 + idx * 5000 },
+        { text: `  • Extracting text from PDF...`, delay: 2300 + idx * 5000 },
+        { text: `  • Analyzing skills...`, delay: 2800 + idx * 5000 },
+        { text: `  • Parsing experience data...`, delay: 3500 + idx * 5000 },
+        { text: `  • Assessing resume quality...`, delay: 4200 + idx * 5000 },
+        { text: `  • Calculating match score...`, delay: 4800 + idx * 5000 },
+        { text: `✓ ${file.name} analyzed`, delay: 5500 + idx * 5000 }
+      );
+    });
+
+    const timers = steps.map((step, index) => {
+      return setTimeout(() => {
+        setProgressSteps((prev) => [...prev, step.text]);
+      }, step.delay);
+    });
+
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  }, [loading, formData.resumeFiles]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -226,46 +260,54 @@ export default function Upload() {
             {loading ? "Processing..." : "Start Screening"}
           </button>
 
-          {/* Loading State with Progress */}
+          {/* Real-time Progress */}
           {loading && (
-            <div className="mt-6 bg-indigo-50 border border-indigo-200 rounded-lg p-6">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="animate-spin h-8 w-8 text-indigo-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-2">
-                    Processing {formData.resumeFiles.length} Resume
-                    {formData.resumeFiles.length !== 1 ? "s" : ""}
-                  </h3>
-                  <div className="space-y-2 text-sm text-gray-700">
-                    <p>• Analyzing job description...</p>
-                    <p>• Extracting candidate skills and experience...</p>
-                    <p>• Computing match scores with AI...</p>
-                    <p>• Generating detailed reports...</p>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-3">
-                    This may take ~{Math.ceil(formData.resumeFiles.length * 10)}{" "}
-                    seconds
-                  </p>
+            <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-5">
+              <div className="flex items-start gap-3 mb-4">
+                <svg
+                  className="animate-spin h-6 w-6 text-indigo-600 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <h3 className="font-semibold text-gray-900">
+                  Processing {formData.resumeFiles.length} Resume
+                  {formData.resumeFiles.length !== 1 ? "s" : ""}...
+                </h3>
+              </div>
+
+              <div className="bg-white rounded border border-gray-200 p-3 max-h-64 overflow-y-auto">
+                <div className="font-mono text-xs space-y-1">
+                  {progressSteps.map((step, index) => (
+                    <div
+                      key={index}
+                      className={`${
+                        step.startsWith("✓")
+                          ? "text-green-600 font-semibold"
+                          : step.startsWith("  •")
+                          ? "text-gray-600 pl-4"
+                          : "text-gray-900"
+                      }`}
+                    >
+                      {step}
+                    </div>
+                  ))}
+                  {progressSteps.length > 0 && (
+                    <div className="text-gray-400 animate-pulse">▌</div>
+                  )}
                 </div>
               </div>
             </div>
