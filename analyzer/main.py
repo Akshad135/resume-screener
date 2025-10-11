@@ -49,19 +49,19 @@ def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict, 
     if "senior" in seniority:
         MUST_HAVE_WEIGHT = 5  
         NICE_TO_HAVE_WEIGHT = 2  
-        EXPERIENCE_WEIGHT = 30  
+        EXPERIENCE_WEIGHT = 20  
         CERTIFICATION_BONUS = 1  
         LEADERSHIP_BONUS = 3  
     elif "entry" in seniority or "junior" in seniority:
-        MUST_HAVE_WEIGHT = 4  
-        NICE_TO_HAVE_WEIGHT = 3  
-        EXPERIENCE_WEIGHT = 10  
-        CERTIFICATION_BONUS = 4  
-        LEADERSHIP_BONUS = 4  
+        MUST_HAVE_WEIGHT = 3
+        NICE_TO_HAVE_WEIGHT = 4  
+        EXPERIENCE_WEIGHT = 5
+        CERTIFICATION_BONUS = 5  
+        LEADERSHIP_BONUS = 5
     else: 
         MUST_HAVE_WEIGHT = 4  
         NICE_TO_HAVE_WEIGHT = 3  
-        EXPERIENCE_WEIGHT = 20  
+        EXPERIENCE_WEIGHT = 8 
         CERTIFICATION_BONUS = 3  
         LEADERSHIP_BONUS = 2 
     
@@ -103,9 +103,9 @@ def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict, 
     
     if max_score == 0:
         return 0
-    
-    
-    normalized_score = int((score / max_score) * 85) # ! Try to add base bonus points later
+
+
+    normalized_score = int((score / max_score) * 90) + 10 # ! Try to add base bonus points later
     return min(normalized_score, 100)
 
 
@@ -182,5 +182,5 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
         "llm_analysis": final_analysis,
         "structured_jd": structured_jd,
         "structured_resume": structured_resume_holistic,
-        "executive_summary": executive_summary,  # Add this new field
+        "executive_summary": executive_summary,
     }
