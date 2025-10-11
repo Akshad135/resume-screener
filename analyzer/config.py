@@ -12,4 +12,4 @@ STRUCTURING_MODEL = "llama-3.1-8b-instant"
 # ANALYSIS_MODEL = "openai/gpt-oss-120b"
 ANALYSIS_MODEL = "groq/compound"
 
-TEMPERATURE = 0.3
+TEMPERATURE = 0.2

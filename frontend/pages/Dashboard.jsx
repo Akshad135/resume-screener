@@ -57,12 +57,18 @@ export default function Dashboard() {
     }
   };
 
+  const totalCandidates = jobs.reduce(
+    (sum, job) => sum + job.candidate_count,
+    0
+  );
+  const latestJob = jobs.length > 0 ? jobs[jobs.length - 1] : null;
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-          <div className="text-xl text-gray-600">Loading jobs...</div>
+          <div className="text-xl text-gray-600">Loading dashboard...</div>
         </div>
       </div>
     );
@@ -102,9 +108,8 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
         <div className="mb-8">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-4xl font-bold text-gray-900 mb-2">
                 Smart Resume Screener
@@ -133,9 +138,95 @@ export default function Dashboard() {
               New Screening
             </Link>
           </div>
+
+          {jobs.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Total Jobs</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {jobs.length}
+                    </p>
+                  </div>
+                  <div className="bg-indigo-100 p-3 rounded-lg">
+                    <svg
+                      className="w-8 h-8 text-indigo-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">
+                      Total Candidates
+                    </p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {totalCandidates}
+                    </p>
+                  </div>
+                  <div className="bg-emerald-100 p-3 rounded-lg">
+                    <svg
+                      className="w-8 h-8 text-emerald-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Latest Job</p>
+                    <p
+                      className="text-lg font-semibold text-gray-900 truncate"
+                      title={latestJob?.title}
+                    >
+                      {latestJob?.title || "N/A"}
+                    </p>
+                  </div>
+                  <div className="bg-purple-100 p-3 rounded-lg">
+                    <svg
+                      className="w-8 h-8 text-purple-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Empty State */}
         {jobs.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-lg shadow border border-gray-200">
             <div className="mb-6">
