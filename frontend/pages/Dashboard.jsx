@@ -18,32 +18,8 @@ export default function Dashboard() {
         throw new Error(`Server error: ${response.status}`);
       }
       const data = await response.json();
-
-      // Fetch candidate counts for each job
-      const jobsWithCounts = await Promise.all(
-        data.map(async (job) => {
-          try {
-            const screeningsRes = await fetch(
-              `${API_BASE_URL}/jobs/${job.id}/screenings/`
-            );
-            if (!screeningsRes.ok) {
-              console.warn(`Failed to fetch screenings for job ${job.id}`);
-              return { ...job, candidate_count: 0, has_error: true };
-            }
-            const screenings = await screeningsRes.json();
-            return {
-              ...job,
-              candidate_count: screenings.length,
-              has_error: false,
-            };
-          } catch (err) {
-            console.warn(`Error fetching screenings for job ${job.id}:`, err);
-            return { ...job, candidate_count: 0, has_error: true };
-          }
-        })
-      );
-
-      setJobs(jobsWithCounts);
+      // No need to fetch screenings separately - candidate_count is included!
+      setJobs(data);
     } catch (err) {
       console.error("Dashboard error:", err);
       setError(err.message);
@@ -146,17 +122,10 @@ export default function Dashboard() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-2">
                     {job.title}
                   </h2>
-                  <div className="flex items-center gap-3">
-                    <p className="text-gray-600">
-                      {job.candidate_count} candidate
-                      {job.candidate_count !== 1 ? "s" : ""} screened
-                    </p>
-                    {job.has_error && (
-                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                        Data may be incomplete
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-gray-600">
+                    {job.candidate_count} candidate
+                    {job.candidate_count !== 1 ? "s" : ""} screened
+                  </p>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-500 mb-1">

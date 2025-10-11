@@ -40,20 +40,36 @@ def get_db():
 @app.get("/jobs/", response_model=List[schemas.Job])
 def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
-    Retrieve a list of all jobs in the database.
+    Retrieve a list of all jobs in the database with candidate counts.
     This powers the main dashboard view on the frontend.
     """
     try:
         jobs = crud.get_jobs(db, skip=skip, limit=limit)
         if not jobs:
-            return []  # Return empty list instead of None
-        return jobs
+            return []
+        
+        jobs_with_counts = []
+        for job in jobs:
+            candidate_count = db.query(models.Screening)\
+                               .filter(models.Screening.job_id == job.id)\
+                               .count()
+            
+            job_dict = {
+                "id": job.id,
+                "title": job.title,
+                "created_at": job.created_at,
+                "candidate_count": candidate_count
+            }
+            jobs_with_counts.append(job_dict)
+        
+        return jobs_with_counts
     except Exception as e:
         print(f"Error fetching jobs: {e}")
         raise HTTPException(
             status_code=500, 
             detail="Failed to retrieve jobs from database"
         )
+
 
 
 @app.get("/jobs/{job_id}/screenings/", response_model=List[schemas.Screening])

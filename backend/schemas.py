@@ -33,6 +33,7 @@ class JobCreate(JobBase):
 class Job(JobBase):
     id: int
     created_at: datetime
+    candidate_count: int = 0 
     
     class Config:
         from_attributes = True
