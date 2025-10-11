@@ -263,7 +263,7 @@ export default function Upload() {
           {/* Real-time Progress */}
           {loading && (
             <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-5">
-              <div className="flex items-start gap-3 mb-4">
+              <div className="flex items-start gap-3 mb-3">
                 <svg
                   className="animate-spin h-6 w-6 text-indigo-600 flex-shrink-0"
                   fill="none"
@@ -289,25 +289,28 @@ export default function Upload() {
                 </h3>
               </div>
 
-              <div className="bg-white rounded border border-gray-200 p-3 max-h-64 overflow-y-auto">
+              {/* Only show last 2 progress steps */}
+              <div className="bg-white rounded border border-gray-200 p-3">
                 <div className="font-mono text-xs space-y-1">
-                  {progressSteps.map((step, index) => (
-                    <div
-                      key={index}
-                      className={`${
-                        step.startsWith("✓")
-                          ? "text-green-600 font-semibold"
-                          : step.startsWith("  •")
-                          ? "text-gray-600 pl-4"
-                          : "text-gray-900"
-                      }`}
-                    >
-                      {step}
-                    </div>
-                  ))}
-                  {progressSteps.length > 0 && (
-                    <div className="text-gray-400 animate-pulse">▌</div>
-                  )}
+                  {progressSteps.slice(-2).map((step, index) => {
+                    const isNew = index === progressSteps.slice(-2).length - 1;
+                    return (
+                      <div
+                        key={progressSteps.length - 2 + index}
+                        className={`${
+                          step.startsWith("✓")
+                            ? "text-green-600 font-semibold"
+                            : step.startsWith("  •")
+                            ? "text-gray-600"
+                            : "text-gray-900"
+                        } ${
+                          isNew ? "animate-fadeIn" : "opacity-70"
+                        } transition-opacity duration-300`}
+                      >
+                        {step}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
