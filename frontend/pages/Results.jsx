@@ -8,13 +8,13 @@ export default function Results() {
   const [screenings, setScreenings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
   const [uploadingResumes, setUploadingResumes] = useState(false);
   const [uploadError, setUploadError] = useState(null);
-  const fileInputRef = useRef(null);
-
   const [deletingScreeningId, setDeletingScreeningId] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchScreenings();
@@ -23,46 +23,24 @@ export default function Results() {
   const fetchScreenings = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/screenings/`);
-      if (!response.ok) throw new Error("Failed to fetch screenings");
+
+      if (response.status === 404) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch screenings");
+      }
+
       const data = await response.json();
       setScreenings(data);
+      setNotFound(false);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDeleteScreening = async (screeningId, candidateName, e) => {
-    e.stopPropagation(); // Prevent opening modal
-
-    if (
-      !confirm(
-        `Are you sure you want to remove "${candidateName}" from this job screening?`
-      )
-    ) {
-      return;
-    }
-
-    setDeletingScreeningId(screeningId);
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/screenings/${screeningId}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete screening");
-      }
-
-      // Refresh the screenings list
-      await fetchScreenings();
-    } catch (err) {
-      alert(`Error deleting screening: ${err.message}`);
-    } finally {
-      setDeletingScreeningId(null);
     }
   };
 
@@ -94,7 +72,6 @@ export default function Results() {
 
       await fetchScreenings();
 
-      // Clear the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -105,18 +82,110 @@ export default function Results() {
     }
   };
 
+  const handleDeleteScreening = async (screeningId, candidateName, e) => {
+    e.stopPropagation();
+
+    if (
+      !confirm(
+        `Are you sure you want to remove "${candidateName}" from this job screening?`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingScreeningId(screeningId);
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/screenings/${screeningId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete screening");
+      }
+
+      await fetchScreenings();
+    } catch (err) {
+      alert(`Error deleting screening: ${err.message}`);
+    } finally {
+      setDeletingScreeningId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl">Loading results...</div>
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <div className="text-xl text-gray-600">Loading results...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 max-w-md text-center">
+          <svg
+            className="mx-auto h-16 w-16 text-yellow-600 mb-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Job Not Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            The job you're looking for doesn't exist or has been deleted.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl text-red-600">Error: {error}</div>
+      <div className="flex flex-col justify-center items-center min-h-screen p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
+          <h2 className="text-xl font-semibold text-red-800 mb-2">
+            Error Loading Results
+          </h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="space-x-3">
+            <button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                fetchScreenings();
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -142,7 +211,6 @@ export default function Results() {
             </p>
           </div>
 
-          {/* Add Resume Button */}
           <div className="flex flex-col items-end gap-2">
             <input
               ref={fileInputRef}
@@ -187,8 +255,29 @@ export default function Results() {
       </div>
 
       {screenings.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No candidates found for this job</p>
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <svg
+            className="mx-auto h-16 w-16 text-gray-400 mb-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+            />
+          </svg>
+          <p className="text-gray-500 text-lg mb-4">
+            No candidates screened for this job yet
+          </p>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+          >
+            Add Candidates
+          </button>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -228,7 +317,6 @@ export default function Results() {
                       <div className="text-sm text-gray-500">Score</div>
                     </div>
 
-                    {/* Delete Button */}
                     <button
                       onClick={(e) =>
                         handleDeleteScreening(
