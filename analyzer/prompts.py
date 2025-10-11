@@ -22,37 +22,60 @@ Strictly adhere to the following rules:
 # --- Prompt to analyze skills against the resume text ---
 COMBINED_ANALYSIS_PROMPT = """
 You are a hyper-logical AI recruitment analyst. Analyze the raw resume text to determine the candidate's proficiency for the provided list of required skills.
+
 Strictly adhere to the following rules:
-1.  Search the entire resume text for evidence of each skill.
-2.  Make logical inferences (e.g., a GitHub profile link implies "Git" skills).
-3.  Consider closely related technologies. For example, if 'FastAPI' is required, experience with 'Flask' or 'Django' is relevant and should be noted in the evidence and given a partial proficiency score.
-4.  For `evidence_from_resume`, you MUST provide the full sentence or bullet point that proves the skill's application.
-5.  For `proficiency_level`, use this 0-3 scale: 0=Not Found, 1=Mentioned in a list/is a related tech, 2=Used in a project, 3=Central to a major project.
-6.  The output MUST be a single, raw JSON object.
+
+1. Search the entire resume text for evidence of each skill.
+
+2. Make logical inferences (e.g., a GitHub profile link implies "Git" skills).
+
+3. Consider closely related technologies. For example, if 'FastAPI' is required, experience with 'Flask' or 'Django' is relevant and should be noted in the evidence and given a partial proficiency score.
+
+4. For `evidence_from_resume`, you MUST provide the full sentence or bullet point that proves the skill's application.
+
+5. For `proficiency_level`, use this 0-3 scale: 0=Not Found, 1=Mentioned in a list/is a related tech, 2=Used in a project, 3=Central to a major project.
+
+6. After analyzing skills, write a concise 2-3 sentence `executive_summary` that:
+   - Highlights the candidate's strongest matches (mention 1-2 specific skills)
+   - Notes critical gaps if any exist
+   - Provides an overall assessment of fit for the role
+   
+7. The output MUST be a single, raw JSON object.
+
 ### JSON OUTPUT SCHEMA ###
+
 {{
-  "skill_match_analysis": {{
-    "must_have_matches": [
-      {{
-        "skill": "string",
-        "proficiency_level": "integer (0-3)",
-        "evidence_from_resume": "string"
-      }}, ... ],
-    "nice_to_have_matches": [
-      {{
-        "skill": "string",
-        "proficiency_level": "integer (0-3)",
-        "evidence_from_resume": "string"
-      }}, ... ]
-  }}
+"skill_match_analysis": {{
+  "must_have_matches": [
+    {{
+      "skill": "string",
+      "proficiency_level": "integer (0-3)",
+      "evidence_from_resume": "string"
+    }}, ... ],
+  "nice_to_have_matches": [
+    {{
+      "skill": "string",
+      "proficiency_level": "integer (0-3)",
+      "evidence_from_resume": "string"
+    }}, ... ]
+}},
+"executive_summary": "A concise 2-3 sentence professional summary highlighting strongest matches, critical gaps, and overall fit."
 }}
+
 ### REQUIRED SKILLS (JSON from Job Description) ###
+
 {jd_skills_json}
+
 ### END OF REQUIRED SKILLS ###
+
 ### RESUME TEXT ###
+
 {resume_text}
+
 ### END OF RESUME TEXT ###
+
 """
+
 
 # --- Prompt to parse all non-skill, holistic data from the resume ---
 HOLISTIC_DATA_PARSER_PROMPT = """
@@ -80,7 +103,7 @@ Strictly adhere to the following rules:
 
 # --- Prompt to calculate total years of experience from a list of durations ---
 EXPERIENCE_CALCULATION_PROMPT = """
-You are a specialized calculator. Based on the provided list of job/project durations, calculate the total years of experience as a single floating-point number. Assume 'Present' or ongoing dates mean the current date. Sum up all durations. Return only a single raw JSON object with one key: "total_experience_years".
+You are a specialized calculator. Based on the provided list of job/project durations, calculate the total years of experience as a single floating-point number. Assume 'Present' or ongoing dates mean the current date (Oct 2025). Sum up all durations. Return only a single raw JSON object with one key: "total_experience_years".
 ### EXPERIENCE LIST ###
 {experience_json}
 ### END OF EXPERIENCE LIST ###

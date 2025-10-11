@@ -116,11 +116,20 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
         return {"error": "Failed to extract text from resume PDF."}
     
     print(f"--- [{resume_filename}] Analyzing Skills ---")
-    jd_skills = {"must_have_skills": structured_jd.get("must_have_skills", []),"nice_to_have_skills": structured_jd.get("nice_to_have_skills", [])}
-    analysis_prompt = prompts.COMBINED_ANALYSIS_PROMPT.format(jd_skills_json=json.dumps(jd_skills, indent=2), resume_text=resume_text)
+    jd_skills = {
+        "must_have_skills": structured_jd.get("must_have_skills", []),
+        "nice_to_have_skills": structured_jd.get("nice_to_have_skills", [])
+    }
+    analysis_prompt = prompts.COMBINED_ANALYSIS_PROMPT.format(
+        jd_skills_json=json.dumps(jd_skills, indent=2), 
+        resume_text=resume_text
+    )
     skill_analysis = _call_llm(analysis_prompt, model=config.ANALYSIS_MODEL)
     if "error" in skill_analysis:
         return {"error": "Failed during combined analysis.", "details": skill_analysis["error"]}
+
+    # Extract executive summary from skill_analysis
+    executive_summary = skill_analysis.get("executive_summary", "No summary available")
 
     print(f"--- [{resume_filename}] Parsing Holistic Data ---")
     holistic_prompt = prompts.HOLISTIC_DATA_PARSER_PROMPT.format(resume_text=resume_text)
@@ -130,10 +139,16 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
         structured_resume_holistic = {}
 
     print(f"--- [{resume_filename}] Calculating Experience ---")
-    candidate_experience_years = _calculate_experience_years(structured_resume_holistic.get("experience_and_projects", []))
+    candidate_experience_years = _calculate_experience_years(
+        structured_resume_holistic.get("experience_and_projects", [])
+    )
 
     final_analysis = skill_analysis
-    final_analysis["experience_match_analysis"] = {"required_years": structured_jd.get("required_experience_years", 0),"calculated_candidate_years": candidate_experience_years,"is_sufficient": candidate_experience_years >= structured_jd.get("required_experience_years", 0)}
+    final_analysis["experience_match_analysis"] = {
+        "required_years": structured_jd.get("required_experience_years", 0),
+        "calculated_candidate_years": candidate_experience_years,
+        "is_sufficient": candidate_experience_years >= structured_jd.get("required_experience_years", 0)
+    }
 
     print(f"--- [{resume_filename}] Assessing Quality ---")
     quality_prompt = prompts.RESUME_QUALITY_PROMPT.format(resume_text=resume_text)
@@ -141,7 +156,12 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
     quality_multiplier = quality_assessment.get("quality_score", 1.0)
     
     print(f"--- [{resume_filename}] Calculating Final Score ---")
-    unadjusted_score = _calculate_weighted_score(final_analysis, structured_jd, structured_resume_holistic, candidate_experience_years)
+    unadjusted_score = _calculate_weighted_score(
+        final_analysis, 
+        structured_jd, 
+        structured_resume_holistic, 
+        candidate_experience_years
+    )
     final_score = int(unadjusted_score * quality_multiplier)
 
     return {
@@ -151,4 +171,5 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
         "llm_analysis": final_analysis,
         "structured_jd": structured_jd,
         "structured_resume": structured_resume_holistic,
+        "executive_summary": executive_summary,  # Add this new field
     }

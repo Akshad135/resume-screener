@@ -77,9 +77,9 @@ export default function Results() {
             ).length;
             const totalRequired = mustHaveSkills.length;
 
-            const summary = `Matched ${matchedCount} out of ${totalRequired} required skills. Score: ${parseFloat(
-              screening.final_score
-            ).toFixed(1)}/100`;
+            const summary =
+              screening.skill_match_analysis?.executive_summary ||
+              "No summary available";
 
             return (
               <div
