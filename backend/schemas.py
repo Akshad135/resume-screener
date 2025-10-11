@@ -44,6 +44,7 @@ class ScreeningBase(BaseModel):
     final_score: Decimal
     quality_multiplier: Decimal
     skill_match_analysis: Dict[str, Any]
+    red_flags: Optional[List[str]] = []
 
 class ScreeningCreate(ScreeningBase):
     pass

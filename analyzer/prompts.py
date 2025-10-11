@@ -193,57 +193,42 @@ You are a specialized calculator. Based on the provided list of job/project dura
 
 # --- Prompt to check for resume quality and red flags ---
 RESUME_QUALITY_PROMPT = """
-
 You are an expert recruitment analyst assessing the quality of a candidate's resume CONTENT, not formatting.
 
 Since you're receiving raw text (no formatting visible), focus ONLY on:
 
 1. **Clarity & Communication:** Are accomplishments clearly stated? Are technical details well-explained?
-
 2. **Impact & Quantification:** Does the candidate provide metrics/numbers (e.g., "improved performance by 30%")?
-
 3. **Depth of Experience:** Are projects described with sufficient technical depth?
-
 4. **Professional Language:** Is the content professional and well-written (ignore minor typos)?
-
 5. **Completeness:** Does the resume show a complete professional narrative (education, experience, skills)?
 
 ### SCORING GUIDELINES ###
 
-- **0.90-1.00**: Excellent content - clear impact statements, quantified achievements, strong technical depth
+- **0.95-1.00**: Exceptional - Multiple quantified achievements, deep technical details, clear business impact across all sections
+- **0.88-0.94**: Strong - Several quantified results, good technical depth, professional narrative
+- **0.80-0.87**: Good - Some quantification, adequate technical details, meets professional standards
+- **0.72-0.79**: Average - Basic descriptions, minimal metrics, lacks depth but acceptable
+- **0.65-0.71**: Below average - Vague descriptions, no quantification, missing key sections
+- **0.50-0.64**: Poor - Very minimal information, unclear narrative
 
-- **0.85-0.89**: Good content - decent descriptions, some metrics, professional language
-
-- **0.80-0.84**: Average content - basic descriptions, minimal quantification, meets baseline
-
-- **0.75-0.79**: Below average - vague descriptions, lacks detail
-
-- **0.70-0.74**: Poor content - very minimal information
-
-**Important:** Only penalize severely if content is truly poor.
+**Be objective and distribute scores across the full range based on content quality.**
 
 ### RED FLAGS ###
 
 - Completely missing work experience section
-
 - No technical skills listed at all
-
-- Unexplained employment gaps exceeding 3 years
-
+- Unexplained employment gaps exceeding 1 years
 - Contradictory information
-
 - Unprofessional language or tone
 
-**Do NOT flag:** Minor typos, formatting issues, brief gaps, or stylistic preferences.
+**Do NOT flag:** Minor typos, formatting issues or stylistic preferences.
 
 Return a single JSON object:
 
 {{
-
-"quality_score": double,
-
-"red_flags": ["SERIOUS red flags here"]
-
+"quality_score": 0.xx,
+"red_flags": ["red flags here"]
 }}
 
 ### RESUME TEXT ###
@@ -251,5 +236,4 @@ Return a single JSON object:
 {resume_text}
 
 ### END OF RESUME TEXT ###
-
 """

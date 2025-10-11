@@ -1,8 +1,9 @@
 import json
-from groq import Groq
+from groq import AsyncGroq # Changed to the asynchronous client
 from . import config, prompts, parsers
 
-client = Groq(api_key=config.GROQ_API_KEY)
+# Use the asynchronous client
+client = AsyncGroq(api_key=config.GROQ_API_KEY)
 
 def _clean_json_from_llm(raw_output: str) -> str:
     """Finds and extracts the first valid JSON object from a raw LLM output string."""
@@ -15,10 +16,11 @@ def _clean_json_from_llm(raw_output: str) -> str:
         pass
     return raw_output
 
-def _call_llm(prompt: str, model: str) -> dict:
-    # Makes a call to the LLM and returns the parsed JSON response.
+async def _call_llm(prompt: str, model: str) -> dict:
+    # Makes an asynchronous call to the LLM and returns the parsed JSON response.
     try:
-        chat_completion = client.chat.completions.create(
+        # The client call is now awaited
+        chat_completion = await client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model=model,
             temperature=config.TEMPERATURE,
@@ -31,7 +33,7 @@ def _call_llm(prompt: str, model: str) -> dict:
         print(f"An error occurred with the LLM call using model {model}: {e}")
         return {"error": str(e)}
 
-def _calculate_experience_years(experience_list: list) -> float:
+async def _calculate_experience_years(experience_list: list) -> float:
     # Uses an LLM to parse varied date formats and calculate total experience.
     if not experience_list:
         return 0.0
@@ -39,10 +41,12 @@ def _calculate_experience_years(experience_list: list) -> float:
     prompt = prompts.EXPERIENCE_CALCULATION_PROMPT.format(
         experience_json=json.dumps(experience_list)
     )
-    response = _call_llm(prompt, model=config.STRUCTURING_MODEL)
+    # Await the LLM call
+    response = await _call_llm(prompt, model=config.STRUCTURING_MODEL)
     return response.get("total_experience_years", 0.0)
 
 def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict, candidate_exp: float) -> int:
+    # This function is CPU-bound and does not need to be async.
     # Calculates a final score based on the LLM's analysis and defined weights.
     seniority = requirements.get("seniority_level", "mid-level").lower()
     
@@ -70,17 +74,29 @@ def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict, 
     score = 0
     max_score = 0
     
+    # --- CHANGE 1: Added robust helper function to prevent crashes ---
+    def get_safe_level(level_value) -> int:
+        """Safely converts proficiency level to an integer, defaulting to 0."""
+        try:
+            return int(level_value)
+        except (ValueError, TypeError):
+            return 0
+
     # Must-have skills
     must_haves = analysis.get("skill_match_analysis", {}).get("must_have_matches", [])
     max_score += len(requirements.get("must_have_skills", [])) * MUST_HAVE_WEIGHT * MAX_PROFICIENCY_LEVEL
     for skill in must_haves:
-        score += MUST_HAVE_WEIGHT * skill.get("proficiency_level", 0)
+        # Use the safe getter to prevent type errors
+        level = get_safe_level(skill.get("proficiency_level"))
+        score += MUST_HAVE_WEIGHT * level
     
     # Nice-to-have skills
     nice_to_haves = analysis.get("skill_match_analysis", {}).get("nice_to_have_matches", [])
     max_score += len(requirements.get("nice_to_have_skills", [])) * NICE_TO_HAVE_WEIGHT * MAX_PROFICIENCY_LEVEL
     for skill in nice_to_haves:
-        score += NICE_TO_HAVE_WEIGHT * skill.get("proficiency_level", 0)
+        # Use the safe getter here too
+        level = get_safe_level(skill.get("proficiency_level"))
+        score += NICE_TO_HAVE_WEIGHT * level
     
     # Experience matching
     required_exp = requirements.get("required_experience_years", 0)
@@ -104,27 +120,38 @@ def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict, 
     if max_score == 0:
         return 0
 
-
-    normalized_score = int((score / max_score) * 90) + 10 # ! Try to add base bonus points later
+    normalized_score = int((score / max_score) * 90) + 20 # ! Try to add base bonus points later
     return min(normalized_score, 100)
 
 
-def deconstruct_jd(job_description_text: str) -> dict:
-    # Analyzes the Job Description.
+async def deconstruct_jd(job_description_text: str) -> dict:
+    # Analyzes the Job Description asynchronously.
     print("--- Stage 1: Deconstructing Job Description (Once) ---")
     jd_prompt = prompts.JD_DECONSTRUCTION_PROMPT.format(job_description=job_description_text)
-    structured_jd = _call_llm(jd_prompt, model=config.STRUCTURING_MODEL)
+    # Await the LLM call
+    structured_jd = await _call_llm(jd_prompt, model=config.STRUCTURING_MODEL)
     if "error" in structured_jd:
         return {"error": "Failed to parse Job Description.", "details": structured_jd["error"]}
     print("✅ JD Deconstruction Complete.")
     return structured_jd
 
-def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resume_filename: str) -> dict:
-    # Analyzes a resume against a pre-processed Job Description.
+# --- CHANGE 2: Added a proactive text cleaner ---
+def _clean_resume_text(text: str) -> str:
+    """Removes common problematic text patterns before sending to LLM."""
+    lines = text.split('\n')
+    # Remove lines that are likely comments or formatting artifacts
+    cleaned_lines = [line.strip() for line in lines if not line.strip().startswith('#')]
+    return '\n'.join(cleaned_lines)
+
+async def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resume_filename: str) -> dict:
+    # Analyzes a resume against a pre-processed Job Description asynchronously.
     print(f"\n--- [{resume_filename}] Starting Analysis ---")
-    resume_text = parsers.extract_text_from_pdf(resume_file_content)
-    if not resume_text:
+    raw_resume_text = parsers.extract_text_from_pdf(resume_file_content)
+    if not raw_resume_text:
         return {"error": "Failed to extract text from resume PDF."}
+    
+    # Use the cleaned text for analysis
+    resume_text = _clean_resume_text(raw_resume_text)
     
     print(f"--- [{resume_filename}] Analyzing Skills ---")
     jd_skills = {
@@ -135,7 +162,8 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
         jd_skills_json=json.dumps(jd_skills, indent=2), 
         resume_text=resume_text
     )
-    skill_analysis = _call_llm(analysis_prompt, model=config.ANALYSIS_MODEL)
+    # Await the LLM call for skill analysis
+    skill_analysis = await _call_llm(analysis_prompt, model=config.ANALYSIS_MODEL)
     if "error" in skill_analysis:
         return {"error": "Failed during combined analysis.", "details": skill_analysis["error"]}
 
@@ -144,13 +172,15 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
 
     print(f"--- [{resume_filename}] Parsing Holistic Data ---")
     holistic_prompt = prompts.HOLISTIC_DATA_PARSER_PROMPT.format(resume_text=resume_text)
-    structured_resume_holistic = _call_llm(holistic_prompt, model=config.STRUCTURING_MODEL)
+    # Await the LLM call for holistic data
+    structured_resume_holistic = await _call_llm(holistic_prompt, model=config.STRUCTURING_MODEL)
     if "error" in structured_resume_holistic:
         print(f"Warning: Failed to parse holistic data for {resume_filename}.")
         structured_resume_holistic = {}
 
     print(f"--- [{resume_filename}] Calculating Experience ---")
-    candidate_experience_years = _calculate_experience_years(
+    # Await the experience calculation (which also calls the LLM)
+    candidate_experience_years = await _calculate_experience_years(
         structured_resume_holistic.get("experience_and_projects", [])
     )
 
@@ -163,10 +193,12 @@ def analyze_single_resume(structured_jd: dict, resume_file_content: bytes, resum
 
     print(f"--- [{resume_filename}] Assessing Quality ---")
     quality_prompt = prompts.RESUME_QUALITY_PROMPT.format(resume_text=resume_text)
-    quality_assessment = _call_llm(quality_prompt, model=config.STRUCTURING_MODEL)
+    # Await the LLM call for quality assessment
+    quality_assessment = await _call_llm(quality_prompt, model=config.STRUCTURING_MODEL)
     quality_multiplier = quality_assessment.get("quality_score", 1.0)
     
     print(f"--- [{resume_filename}] Calculating Final Score ---")
+    # The scoring function itself is synchronous and doesn't need to be awaited
     unadjusted_score = _calculate_weighted_score(
         final_analysis, 
         structured_jd, 

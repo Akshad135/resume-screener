@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB , ARRAY
 from sqlalchemy.sql import func
 
 from .database import Base
@@ -35,6 +35,7 @@ class Screening(Base):
     id = Column(Integer, primary_key=True, index=True)
     final_score = Column(Numeric(5, 2))  # e.g., 95.75
     skill_match_analysis = Column(JSONB)
+    red_flags = Column(ARRAY(String), nullable=True)
     quality_multiplier = Column(Numeric(3, 2)) # e.g., 0.95
     screened_at = Column(DateTime(timezone=True), server_default=func.now())
 
