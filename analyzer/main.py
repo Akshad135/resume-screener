@@ -45,58 +45,69 @@ def _calculate_experience_years(experience_list: list) -> float:
 def _calculate_weighted_score(analysis: dict, requirements: dict, resume: dict, candidate_exp: float) -> int:
     # Calculates a final score based on the LLM's analysis and defined weights.
     seniority = requirements.get("seniority_level", "mid-level").lower()
+    
     if "senior" in seniority:
-        MUST_HAVE_WEIGHT = 6
-        NICE_TO_HAVE_WEIGHT = 1
-        EXPERIENCE_WEIGHT = 40
-        CERTIFICATION_BONUS = 0.5
-        LEADERSHIP_BONUS = 2
+        MUST_HAVE_WEIGHT = 5  
+        NICE_TO_HAVE_WEIGHT = 2  
+        EXPERIENCE_WEIGHT = 30  
+        CERTIFICATION_BONUS = 1  
+        LEADERSHIP_BONUS = 3  
     elif "entry" in seniority or "junior" in seniority:
-        MUST_HAVE_WEIGHT = 5
-        NICE_TO_HAVE_WEIGHT = 3
-        EXPERIENCE_WEIGHT = 15
-        CERTIFICATION_BONUS = 3
-        LEADERSHIP_BONUS = 3
-    else:
-        MUST_HAVE_WEIGHT = 5
-        NICE_TO_HAVE_WEIGHT = 2
-        EXPERIENCE_WEIGHT = 25
-        CERTIFICATION_BONUS = 2
-        LEADERSHIP_BONUS = 1.5
-
+        MUST_HAVE_WEIGHT = 4  
+        NICE_TO_HAVE_WEIGHT = 3  
+        EXPERIENCE_WEIGHT = 10  
+        CERTIFICATION_BONUS = 4  
+        LEADERSHIP_BONUS = 4  
+    else: 
+        MUST_HAVE_WEIGHT = 4  
+        NICE_TO_HAVE_WEIGHT = 3  
+        EXPERIENCE_WEIGHT = 20  
+        CERTIFICATION_BONUS = 3  
+        LEADERSHIP_BONUS = 2 
+    
     MAX_PROFICIENCY_LEVEL = 3
+    
     score = 0
     max_score = 0
-
+    
+    # Must-have skills
     must_haves = analysis.get("skill_match_analysis", {}).get("must_have_matches", [])
     max_score += len(requirements.get("must_have_skills", [])) * MUST_HAVE_WEIGHT * MAX_PROFICIENCY_LEVEL
     for skill in must_haves:
         score += MUST_HAVE_WEIGHT * skill.get("proficiency_level", 0)
-
+    
+    # Nice-to-have skills
     nice_to_haves = analysis.get("skill_match_analysis", {}).get("nice_to_have_matches", [])
     max_score += len(requirements.get("nice_to_have_skills", [])) * NICE_TO_HAVE_WEIGHT * MAX_PROFICIENCY_LEVEL
     for skill in nice_to_haves:
         score += NICE_TO_HAVE_WEIGHT * skill.get("proficiency_level", 0)
-
+    
+    # Experience matching
     required_exp = requirements.get("required_experience_years", 0)
     max_score += EXPERIENCE_WEIGHT
     if required_exp > 0:
-        experience_ratio = min(candidate_exp / required_exp, 1.0)
+        experience_ratio = min(candidate_exp / required_exp, 1.2)
         score += EXPERIENCE_WEIGHT * experience_ratio
-        
+    else:
+        score += EXPERIENCE_WEIGHT
+    
+    # Certifications
     certifications = resume.get("certifications_and_awards", [])
     max_score += len(certifications) * CERTIFICATION_BONUS
     score += len(certifications) * CERTIFICATION_BONUS
     
+    # Leadership
     leadership_roles = resume.get("leadership_and_extracurriculars", [])
     max_score += len(leadership_roles) * LEADERSHIP_BONUS
     score += len(leadership_roles) * LEADERSHIP_BONUS
-
+    
     if max_score == 0:
         return 0
-        
-    normalized_score = int((score / max_score) * 100)
+    
+    
+    normalized_score = int((score / max_score) * 85) # ! Try to add base bonus points later
     return min(normalized_score, 100)
+
 
 def deconstruct_jd(job_description_text: str) -> dict:
     # Analyzes the Job Description.

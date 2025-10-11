@@ -21,7 +21,7 @@ Strictly adhere to the following rules:
 
 # --- Prompt to analyze skills against the resume text ---
 COMBINED_ANALYSIS_PROMPT = """
-You are a hyper-logical AI recruitment analyst. Analyze the raw resume text to determine the candidate's proficiency for the provided list of required skills.
+You are a balanced AI recruitment analyst with a focus on identifying potential rather than penalizing gaps. Analyze the raw resume text to determine the candidate's proficiency for the provided list of required skills.
 
 Strictly adhere to the following rules:
 
@@ -29,18 +29,24 @@ Strictly adhere to the following rules:
 
 2. Make logical inferences (e.g., a GitHub profile link implies "Git" skills).
 
-3. Consider closely related technologies. For example, if 'FastAPI' is required, experience with 'Flask' or 'Django' is relevant and should be noted in the evidence and given a partial proficiency score.
+3. **Be generous with related technologies.** For example, if 'FastAPI' is required but the candidate has 'Flask' or 'Django', assign at least level 2. If 'React' is required but they have 'Vue', assign level 2.
 
 4. For `evidence_from_resume`, you MUST provide the full sentence or bullet point that proves the skill's application.
 
-5. For `proficiency_level`, use this 0-3 scale: 0=Not Found, 1=Mentioned in a list/is a related tech, 2=Used in a project, 3=Central to a major project.
+5. For `proficiency_level`, use this 0-3 scale: 
+   - 0 = Not Found (no evidence at all)
+   - 1 = Mentioned in a list OR is a closely related technology
+   - 2 = Used in a project OR demonstrated through similar frameworks
+   - 3 = Central to a major project OR deep expertise shown
 
-6. After analyzing skills, write a concise 2-3 sentence `executive_summary` that:
+6. **Important:** If you find ANY related experience, assign at least level 1. Only use level 0 if there's absolutely no evidence.
+
+7. After analyzing skills, write a concise 2-3 sentence `executive_summary` that:
    - Highlights the candidate's strongest matches (mention 1-2 specific skills)
    - Notes critical gaps if any exist
    - Provides an overall assessment of fit for the role
-   
-7. The output MUST be a single, raw JSON object.
+
+8. The output MUST be a single, raw JSON object.
 
 ### JSON OUTPUT SCHEMA ###
 
@@ -109,17 +115,54 @@ You are a specialized calculator. Based on the provided list of job/project dura
 ### END OF EXPERIENCE LIST ###
 """
 
-# --- NEW Prompt to check for resume quality and red flags ---
+# --- Prompt to check for resume quality and red flags ---
 RESUME_QUALITY_PROMPT = """
-You are a strict proofreader and recruitment analyst. Analyze the provided resume text for overall quality and professionalism.
-Identify any red flags like spelling mistakes, grammatical errors, or very generic, non-quantified descriptions.
-Return a single JSON object containing a `quality_score` (from 0.5 for very poor to 1.0 for excellent) and a list of `red_flags`.
-### JSON OUTPUT SCHEMA ###
+
+You are an expert recruitment analyst assessing the quality of a candidate's resume CONTENT, not formatting.
+
+Since you're receiving raw text (no formatting visible), focus ONLY on:
+
+1. **Clarity & Communication:** Are accomplishments clearly stated? Are technical details well-explained?
+
+2. **Impact & Quantification:** Does the candidate provide metrics/numbers (e.g., "improved performance by 30%")?
+
+3. **Depth of Experience:** Are projects described with sufficient technical depth?
+
+4. **Professional Language:** Is the content professional and well-written (ignore minor typos)?
+
+5. **Completeness:** Does the resume show a complete professional narrative (education, experience, skills)?
+
+### SCORING GUIDELINES ###
+
+- **0.90-1.00**: Excellent content - clear impact statements, quantified achievements, strong technical depth
+- **0.85-0.89**: Good content - decent descriptions, some metrics, professional language
+- **0.80-0.84**: Average content - basic descriptions, minimal quantification, meets baseline
+- **0.75-0.79**: Below average - vague descriptions, lacks detail
+- **0.70-0.74**: Poor content - very minimal information
+
+**Important:** Only penalize severely if content is truly lacking.
+
+### RED FLAGS (only list SERIOUS issues) ###
+
+- Completely missing work experience section
+- No technical skills listed at all
+- Unexplained employment gaps exceeding 3 years
+- Contradictory information
+- Unprofessional language or tone
+
+**Do NOT flag:** Minor typos, formatting issues (you can't see formatting anyway), brief gaps, or stylistic preferences.
+
+Return a single JSON object:
+
 {{
-    "quality_score": "float",
-    "red_flags": ["string", "string", ...]
+  "quality_score": 0.85,
+  "red_flags": ["Only list SERIOUS red flags here"]
 }}
+
 ### RESUME TEXT ###
+
 {resume_text}
+
 ### END OF RESUME TEXT ###
+
 """
