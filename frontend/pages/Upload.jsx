@@ -215,7 +215,8 @@ export default function Upload() {
               {formData.resumeFiles.length !== 1 ? "s" : ""}...
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              This may take a few minutes
+              This may take {Math.ceil(formData.resumeFiles.length * 10)}{" "}
+              seconds
             </p>
           </div>
         )}
