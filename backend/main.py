@@ -43,8 +43,18 @@ def read_jobs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     Retrieve a list of all jobs in the database.
     This powers the main dashboard view on the frontend.
     """
-    jobs = crud.get_jobs(db, skip=skip, limit=limit)
-    return jobs
+    try:
+        jobs = crud.get_jobs(db, skip=skip, limit=limit)
+        if not jobs:
+            return []  # Return empty list instead of None
+        return jobs
+    except Exception as e:
+        print(f"Error fetching jobs: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to retrieve jobs from database"
+        )
+
 
 @app.get("/jobs/{job_id}/screenings/", response_model=List[schemas.Screening])
 def read_screenings_for_job(job_id: int, db: Session = Depends(get_db)):
@@ -52,11 +62,29 @@ def read_screenings_for_job(job_id: int, db: Session = Depends(get_db)):
     Retrieve a ranked list of all screenings for a specific job.
     This powers the ranked candidate list on the frontend.
     """
-    screenings = db.query(models.Screening)\
-                   .filter(models.Screening.job_id == job_id)\
-                   .order_by(models.Screening.final_score.desc())\
-                   .all()
-    return screenings
+    try:
+        job = db.query(models.Job).filter(models.Job.id == job_id).first()
+        if not job:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Job with id {job_id} not found"
+            )
+        
+        screenings = db.query(models.Screening)\
+                       .filter(models.Screening.job_id == job_id)\
+                       .order_by(models.Screening.final_score.desc())\
+                       .all()
+        
+        return screenings
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching screenings for job {job_id}: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Failed to retrieve screenings from database"
+        )
+
 
 # --- POST Endpoint ---
 
