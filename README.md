@@ -4,7 +4,7 @@ An AI-powered resume screening system that intelligently matches candidates to j
 
 ## 🎥 Demo Video
 
-[![Demo Video](/assets/thumbnail.png)](<[video-url](https://drive.google.com/file/d/1mTPSt_dpPDjtZXdv48jHflcAuEe3BhAt/view)>)
+[![Demo Video](/assets/thumbnail.png)](https://drive.google.com/file/d/1mTPSt_dpPDjtZXdv48jHflcAuEe3BhAt/view)
 
 ## 🎯 Overview
 
