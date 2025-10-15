@@ -1,6 +1,7 @@
 # --- Environments ---
 # Ignore the virtual environment folder
 /venv
+/myenv
 
 # Ignore environment variables file
 .env
