@@ -80,7 +80,7 @@ Analyze the resume and assign proficiency levels (0-3) for each skill. Apply the
 
 For `evidence_from_resume`: Provide the actual quote from the resume.
 
-Then write a 2-3 sentence `executive_summary` with an optimistic tone, focusing on strengths.
+Then write a 2-3 sentence `executive_summary`, focusing on strengths and at the end an optimistic tone on what's missing/lacking by candidate.
 
 ### JSON OUTPUT ###
 
