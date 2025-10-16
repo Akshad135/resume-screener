@@ -2,6 +2,8 @@
 
 An AI-powered resume screening system that intelligently matches candidates to job descriptions using multi-stage LLM analysis with evidence-based scoring.
 
+<h3><a href="https://github.com/Akshad135/resume-screener">Github Repo: Link</a></h3>
+
 ## 🎥 Demo Video
 
 [![Demo Video](/assets/thumbnail.png)](https://drive.google.com/file/d/1mTPSt_dpPDjtZXdv48jHflcAuEe3BhAt/view)
